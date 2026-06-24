@@ -153,7 +153,7 @@ function shareBouquet() {
     (noteText ? noteText + '\n\n' : '') +
     'grown with love by nirvii';
 
-  var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  var waUrl = 'https://wa.me/918899292701?text=' + encodeURIComponent(msg);
   window.open(waUrl, '_blank');
 
   if (typeof unlockAchievement === 'function') unlockAchievement('bouquetMade');
