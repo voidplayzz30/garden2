@@ -1,343 +1,453 @@
-var PLOT_COUNT = 5;
+var TOTAL_PLOTS = 3;
+var FLOWERS_PER_PLOT = 8;
 var WATER_INTERVAL_MS = 4 * 60 * 60 * 1000;
-var plots = [null, null, null, null, null];
+
+var gardenPlots = [];
+var harvestedFlowers = [];
+var currentPlotIndex = 0;
 var currentTool = 'plant';
+var selectedHoleIndex = null;
 var waterCount = 0;
 var loveCount = 0;
 var beeWave = 1;
 var visitStreak = 1;
 
-window.gardenPlots = plots;
+// Touch swipe vars
+var touchStartX = 0;
+var touchCurrentX = 0;
+var isDragging = false;
 
 function initGarden() {
   try {
     var saved = loadState();
-    if (saved && saved.plots && saved.plots.length > 0) {
-      plots = saved.plots;
-      while (plots.length < PLOT_COUNT) plots.push(null);
+    if (saved && saved.gardenPlots && saved.gardenPlots.length > 0) {
+      gardenPlots = saved.gardenPlots;
+      harvestedFlowers = saved.harvestedFlowers || [];
       waterCount = saved.waterCount || 0;
       loveCount = saved.loveCount || 0;
       beeWave = saved.beeWave || 1;
       visitStreak = saved.visitStreak || 1;
+      currentPlotIndex = 0;
       if (typeof initAchievements === 'function') initAchievements(saved.achievements || []);
-      checkStreak(saved.lastVisit);
     } else {
-      plots = [null, null, null, null, null];
+      createFreshGarden();
       if (typeof initAchievements === 'function') initAchievements([]);
-      visitStreak = 1;
     }
   } catch(e) {
-    plots = [null, null, null, null, null];
-    visitStreak = 1;
+    createFreshGarden();
   }
-  
-  window.gardenPlots = plots;
-  
+
   var noteEl = document.getElementById('noteText');
   if (noteEl && typeof getNote === 'function') noteEl.textContent = getNote();
-  
-  renderGarden();
-  updateStats();
-  
-  if (typeof initWeather === 'function') initWeather();
-  if (typeof updateCreatures === 'function') updateCreatures(getGardenHealth());
-  
+
+  renderAllPlots();
+  updatePlotIndicator();
+  updateHarvestBar();
+  setupSwipe();
+
   setInterval(growthTick, 30000);
-  setInterval(function() { 
-    if (typeof updateCreatures === 'function') updateCreatures(getGardenHealth()); 
-  }, 120000);
-
-  // Update timers every 30 sec
-  setInterval(updateTimers, 30000);
   
-  setTimeout(function() { 
-    if (typeof checkBeeAttack === 'function') checkBeeAttack(beeWave, onBeeComplete); 
-  }, 3000);
+  setTimeout(function() {
+    if (typeof checkBeeAttack === 'function') checkBeeAttack(beeWave, onBeeComplete);
+  }, 5000);
 }
 
-function checkStreak(lastVisit) {
-  if (!lastVisit) { visitStreak = 1; return; }
-  var last = new Date(lastVisit).toDateString();
-  var today = new Date().toDateString();
-  var yesterday = new Date(Date.now() - 86400000).toDateString();
-  if (last === today) return;
-  if (last === yesterday) visitStreak++;
-  else visitStreak = 1;
-  if (visitStreak >= 7 && typeof unlockAchievement === 'function') unlockAchievement('sevenDays');
-}
-
-function updateTimers() {
-  for (var i = 0; i < plots.length; i++) {
-    if (!plots[i] || plots[i].stage === 'dead') continue;
-    var timerEl = document.getElementById('timer-' + i);
-    if (timerEl) {
-      timerEl.textContent = getTimeToNextStage(plots[i]);
+function createFreshGarden() {
+  gardenPlots = [];
+  for (var p = 0; p < TOTAL_PLOTS; p++) {
+    var plot = [];
+    for (var f = 0; f < FLOWERS_PER_PLOT; f++) {
+      plot.push(null);
     }
+    gardenPlots.push(plot);
   }
+  harvestedFlowers = [];
+  visitStreak = 1;
 }
 
-function growthTick() {
-  var now = Date.now();
-  var changed = false;
+// SWIPE SETUP
+function setupSwipe() {
+  var container = document.getElementById('gardenSwipeContainer');
+  if (!container) return;
 
-  for (var i = 0; i < plots.length; i++) {
-    var plot = plots[i];
-    if (!plot) continue;
-    var catalog = getPlantById(plot.type);
-    if (!catalog) continue;
+  container.addEventListener('touchstart', function(e) {
+    touchStartX = e.touches[0].clientX;
+    isDragging = true;
+  }, { passive: true });
 
-    var ageMs = now - plot.plantedAt;
-    var stageMs = (catalog.growHours * 3600000) / 4;
+  container.addEventListener('touchmove', function(e) {
+    if (!isDragging) return;
+    touchCurrentX = e.touches[0].clientX;
+  }, { passive: true });
 
-    var waterAge = now - (plot.lastWatered || plot.plantedAt);
-    var waterPct = Math.max(0, 100 - (waterAge / WATER_INTERVAL_MS) * 100);
-    plots[i].water = Math.round(waterPct);
-
-    if (typeof weatherState !== 'undefined' && weatherState.current === 'rainy') {
-      plots[i].water = Math.min(100, plots[i].water + 20);
-      plots[i].lastWatered = now;
-    }
-
-    if (waterPct < 20) {
-      plots[i].health = Math.max(0, plots[i].health - 2);
-    } else if (waterPct > 50) {
-      plots[i].health = Math.min(100, plots[i].health + 0.5);
-    }
-
-    if (plots[i].health <= 0 && plot.stage !== 'dead') {
-      plots[i].stage = 'dead';
-      if (typeof unlockAchievement === 'function') unlockAchievement('oops');
-      showToast('oh no your ' + plot.type + ' died');
-      changed = true;
-      continue;
-    }
-
-    if (plot.stage !== 'dead' && plot.stage !== 'bloom') {
-      var sunBonus = (typeof weatherState !== 'undefined' && weatherState.sunOpen) ? 1 : 0.6;
-      var stageIdx = getStageIndex(plot.stage);
-      var expected = Math.min(4, Math.floor((ageMs * sunBonus) / stageMs));
-      if (expected > stageIdx) {
-        plots[i].stage = STAGES[expected];
-        changed = true;
-        if (plots[i].stage === 'bloom') {
-          if (typeof unlockAchievement === 'function') unlockAchievement('firstBloom');
-          showToast('your ' + plot.type + ' is in full bloom');
-        }
+  container.addEventListener('touchend', function() {
+    if (!isDragging) return;
+    isDragging = false;
+    var diff = touchStartX - touchCurrentX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0 && currentPlotIndex < TOTAL_PLOTS - 1) {
+        currentPlotIndex++;
+      } else if (diff < 0 && currentPlotIndex > 0) {
+        currentPlotIndex--;
       }
+      updateSwipePosition();
+      updatePlotIndicator();
     }
-    changed = true;
-  }
+  });
 
-  if (changed) {
-    window.gardenPlots = plots;
-    renderGarden();
-    updateStats();
-    saveCurrentState();
+  // Mouse support for PC
+  container.addEventListener('mousedown', function(e) {
+    touchStartX = e.clientX;
+    isDragging = true;
+  });
+
+  container.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    touchCurrentX = e.clientX;
+  });
+
+  container.addEventListener('mouseup', function() {
+    if (!isDragging) return;
+    isDragging = false;
+    var diff = touchStartX - touchCurrentX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0 && currentPlotIndex < TOTAL_PLOTS - 1) {
+        currentPlotIndex++;
+      } else if (diff < 0 && currentPlotIndex > 0) {
+        currentPlotIndex--;
+      }
+      updateSwipePosition();
+      updatePlotIndicator();
+    }
+  });
+}
+
+function updateSwipePosition() {
+  var track = document.getElementById('gardenSwipeTrack');
+  if (track) {
+    track.style.transform = 'translateX(-' + (currentPlotIndex * 100) + '%)';
   }
 }
 
-function renderGarden() {
-  var grid = document.getElementById('gardenGrid');
-  if (!grid) return;
-  grid.innerHTML = '';
+function updatePlotIndicator() {
+  var label = document.getElementById('plotLabel');
+  if (label) label.textContent = 'plot ' + (currentPlotIndex + 1) + ' of ' + TOTAL_PLOTS;
 
-  for (var i = 0; i < plots.length; i++) {
-    var plot = plots[i];
-    var plotEl = document.createElement('div');
-    plotEl.className = 'plot';
-    plotEl.setAttribute('data-plot', i);
-
-    if (plot) {
-      plotEl.classList.add('has-plant');
-      if (plot.stage === 'dead') plotEl.classList.add('dead');
-      else if (plot.water < 25 || plot.health < 30) plotEl.classList.add('wilting');
-
-      var healthClass = plot.health > 60 ? 'good' : plot.health > 30 ? 'ok' : 'bad';
-      var waterClass = plot.water > 60 ? 'good' : plot.water > 30 ? 'ok' : 'bad';
-      var plantHTML = plot.stage === 'dead'
-        ? drawDeadPlantSVG(60, 80)
-        : drawPlantSVG({ type: plot.type, stage: plot.stage, health: plot.health }, 60, 80);
-      
-      var catalog = getPlantById(plot.type);
-      var flowerName = catalog ? catalog.name : plot.type;
-      var stageText = plot.stage === 'dead' ? 'gone' : (STAGE_LABELS[plot.stage] || plot.stage);
-      var timeLeft = getTimeToNextStage(plot);
-      var isBloom = plot.stage === 'bloom';
-
-      plotEl.innerHTML =
-        '<div class="plot-soil' + (plot.water > 60 ? ' wet' : '') + '"></div>' +
-        '<div class="plant-wrap">' + plantHTML + '</div>' +
-        '<div class="plot-info">' +
-          '<div class="plot-flower-name" style="color:' + (catalog ? catalog.petalColor : '#f2a8cc') + '">' + flowerName + '</div>' +
-          '<div class="plot-stage">' + stageText + '</div>' +
-          (isBloom ? '<div class="plot-bloom-tag">ready</div>' : '') +
-          (!isBloom && plot.stage !== 'dead' && timeLeft ? '<div class="plot-timer" id="timer-' + i + '">' + timeLeft + '</div>' : '') +
-          '<div class="plot-bars">' +
-            '<div class="plot-bar-row">' +
-              '<div class="plot-bar-icon health-icon"></div>' +
-              '<div class="plot-bar-track"><div class="plot-bar-fill ' + healthClass + '" style="width:' + plot.health + '%"></div></div>' +
-              '<div class="plot-bar-val">' + Math.round(plot.health) + '</div>' +
-            '</div>' +
-            '<div class="plot-bar-row">' +
-              '<div class="plot-bar-icon water-icon"></div>' +
-              '<div class="plot-bar-track"><div class="plot-bar-fill water-fill ' + waterClass + '" style="width:' + plot.water + '%"></div></div>' +
-              '<div class="plot-bar-val">' + Math.round(plot.water) + '</div>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-    } else {
-      plotEl.innerHTML =
-        '<div class="empty-plot-content">' +
-          '<div class="empty-plus"></div>' +
-          '<div class="empty-text">tap to plant</div>' +
-        '</div>';
+  var dots = document.getElementById('plotDots');
+  if (dots) {
+    dots.innerHTML = '';
+    for (var i = 0; i < TOTAL_PLOTS; i++) {
+      var dot = document.createElement('div');
+      dot.className = 'plot-dot' + (i === currentPlotIndex ? ' active' : '');
+      dot.addEventListener('click', (function(idx) {
+        return function() {
+          currentPlotIndex = idx;
+          updateSwipePosition();
+          updatePlotIndicator();
+        };
+      })(i));
+      dots.appendChild(dot);
     }
-
-    (function(idx) {
-      plotEl.addEventListener('click', function() { handlePlotClick(idx); });
-    })(i);
-
-    grid.appendChild(plotEl);
   }
 }
 
-function handlePlotClick(idx) {
+// RENDER ALL PLOTS
+function renderAllPlots() {
+  var track = document.getElementById('gardenSwipeTrack');
+  if (!track) return;
+  track.innerHTML = '';
+
+  for (var p = 0; p < TOTAL_PLOTS; p++) {
+    var plotView = document.createElement('div');
+    plotView.className = 'garden-plot';
+    plotView.setAttribute('data-plotidx', p);
+
+    var plotData = gardenPlots[p];
+    var aliveCount = plotData.filter(function(f) { return f && f.stage !== 'dead'; }).length;
+    var bloomCount = plotData.filter(function(f) { return f && f.stage === 'bloom'; }).length;
+
+    var ground = document.createElement('div');
+    ground.className = 'plot-ground';
+
+    ground.innerHTML =
+      '<div class="plot-title-bar">' +
+        '<div class="plot-title">plot ' + (p + 1) + '</div>' +
+        '<div class="plot-stats">' +
+          '<div class="plot-stat">' + aliveCount + '/8 planted</div>' +
+          (bloomCount > 0 ? '<div class="plot-stat" style="color:var(--gold)">' + bloomCount + ' bloomed</div>' : '') +
+        '</div>' +
+      '</div>';
+
+    var grid = document.createElement('div');
+    grid.className = 'flower-grid';
+
+    for (var f = 0; f < FLOWERS_PER_PLOT; f++) {
+      var flower = plotData[f];
+      var hole = document.createElement('div');
+      hole.className = 'flower-hole';
+
+      if (flower) {
+        hole.classList.add('has-flower');
+        if (flower.stage === 'bloom') hole.classList.add('bloomed');
+        if (flower.stage === 'dead') hole.classList.add('dead');
+
+        var catalog = getPlantById(flower.type);
+        var flowerName = catalog ? catalog.name : flower.type;
+        var stageText = flower.stage === 'dead' ? 'gone' : (STAGE_LABELS[flower.stage] || flower.stage);
+        var healthPct = Math.round(flower.health);
+        var waterPct = Math.round(flower.water);
+        var healthColor = healthPct > 60 ? 'fill-health' : 'fill-low';
+        var waterColor = waterPct > 30 ? 'fill-water' : 'fill-low';
+
+        var plantHTML = flower.stage === 'dead'
+          ? drawDeadPlantSVG(50, 60)
+          : drawPlantSVG({ type: flower.type, stage: flower.stage, health: flower.health }, 50, 60);
+
+        hole.innerHTML =
+          (flower.stage === 'bloom' ? '<div class="harvest-bloom-icon">✂</div>' : '') +
+          '<div class="flower-in-hole">' + plantHTML + '</div>' +
+          '<div class="flower-info">' +
+            '<div class="flower-name">' + flowerName + '</div>' +
+            '<div class="flower-stage">' + stageText + '</div>' +
+            '<div class="flower-mini-bars">' +
+              '<div class="flower-mini-bar"><div class="flower-mini-fill ' + healthColor + '" style="width:' + healthPct + '%"></div></div>' +
+              '<div class="flower-mini-bar"><div class="flower-mini-fill ' + waterColor + '" style="width:' + waterPct + '%"></div></div>' +
+            '</div>' +
+          '</div>';
+      } else {
+        hole.innerHTML =
+          '<div class="hole-empty">' +
+            '<div class="hole-dig-marks"></div>' +
+            '<div class="hole-plus"></div>' +
+          '</div>';
+      }
+
+      (function(plotIdx, flowerIdx) {
+        hole.addEventListener('click', function() {
+          handleFlowerClick(plotIdx, flowerIdx);
+        });
+      })(p, f);
+
+      grid.appendChild(hole);
+    }
+
+    ground.appendChild(grid);
+    plotView.appendChild(ground);
+    track.appendChild(plotView);
+  }
+
+  updateSwipePosition();
+}
+
+// HANDLE CLICK
+function handleFlowerClick(plotIdx, flowerIdx) {
+  var flower = gardenPlots[plotIdx][flowerIdx];
+
   if (currentTool === 'plant') {
-    if (!plots[idx]) openSeedModal(idx);
-    else showToast('already planted here');
+    if (flower) {
+      showToast('already planted here');
+    } else {
+      selectedHoleIndex = { plot: plotIdx, flower: flowerIdx };
+      openSeedModal();
+    }
   }
+
   if (currentTool === 'water') {
-    if (!plots[idx] || plots[idx].stage === 'dead') { showToast('nothing to water here'); return; }
-    waterPlant(idx);
+    if (!flower || flower.stage === 'dead') {
+      showToast('nothing to water');
+      return;
+    }
+    flower.water = Math.min(100, (flower.water || 0) + 40);
+    flower.lastWatered = Date.now();
+    flower.lastInteracted = Date.now();
+    flower.health = Math.min(100, flower.health + 8);
+    waterCount++;
+    if (waterCount >= 20 && typeof unlockAchievement === 'function') unlockAchievement('waterQueen');
+    showToast('watered ' + flower.type);
+    saveCurrentState();
+    renderAllPlots();
   }
+
   if (currentTool === 'love') {
-    if (!plots[idx] || plots[idx].stage === 'dead') { showToast('plant a flower first'); return; }
-    lovePlant(idx);
+    if (!flower || flower.stage === 'dead') {
+      showToast('plant something first');
+      return;
+    }
+    flower.health = Math.min(100, flower.health + 5);
+    flower.lastInteracted = Date.now();
+    loveCount++;
+    if (loveCount >= 30 && typeof unlockAchievement === 'function') unlockAchievement('loveGiver');
+    showToast('gave love to ' + flower.type);
+    saveCurrentState();
+    renderAllPlots();
+  }
+
+  if (currentTool === 'harvest') {
+    if (!flower) {
+      showToast('nothing to harvest');
+      return;
+    }
+    if (flower.stage !== 'bloom') {
+      showToast('not ready yet. wait for full bloom');
+      return;
+    }
+    harvestedFlowers.push({
+      type: flower.type,
+      harvestedAt: Date.now()
+    });
+    gardenPlots[plotIdx][flowerIdx] = null;
+    showToast('harvested ' + flower.type + '!');
+    var noteEl = document.getElementById('noteText');
+    if (noteEl && typeof getNote === 'function') noteEl.textContent = getNote();
+    saveCurrentState();
+    renderAllPlots();
+    updateHarvestBar();
   }
 }
 
-function waterPlant(idx) {
-  plots[idx].water = Math.min(100, (plots[idx].water || 0) + 40);
-  plots[idx].lastWatered = Date.now();
-  plots[idx].lastInteracted = Date.now();
-  plots[idx].health = Math.min(100, plots[idx].health + 10);
-  waterCount++;
-  if (waterCount >= 20 && typeof unlockAchievement === 'function') unlockAchievement('waterQueen');
-  var plotEl = document.querySelector('[data-plot="' + idx + '"]');
-  if (plotEl) spawnWaterDrops(plotEl);
-  showToast('watered your ' + plots[idx].type);
-  saveCurrentState();
-  renderGarden();
-  updateStats();
-}
-
-function lovePlant(idx) {
-  plots[idx].health = Math.min(100, plots[idx].health + 5);
-  plots[idx].lastInteracted = Date.now();
-  loveCount++;
-  if (loveCount >= 30 && typeof unlockAchievement === 'function') unlockAchievement('loveGiver');
-  var plotEl = document.querySelector('[data-plot="' + idx + '"]');
-  if (plotEl) spawnHearts(plotEl);
-  showToast('gave love to your ' + plots[idx].type);
-  saveCurrentState();
-  renderGarden();
-  updateStats();
-}
-
-function openSeedModal(idx) {
-  var sub = document.getElementById('seedModalSub');
-  if (sub) sub.textContent = 'for plot ' + (idx + 1);
-  renderSeedList(idx);
+// SEED MODAL
+function openSeedModal() {
+  renderSeedList();
   var modal = document.getElementById('seedModal');
   if (modal) modal.classList.add('open');
 }
 
 function closeSeedModal(e) {
   if (e && e.target !== document.getElementById('seedModal')) return;
-  var modal = document.getElementById('seedModal');
-  if (modal) modal.classList.remove('open');
+  document.getElementById('seedModal').classList.remove('open');
 }
 
-function renderSeedList(idx) {
+function renderSeedList() {
   var list = document.getElementById('seedList');
   if (!list) return;
   list.innerHTML = '';
-  
+
   PLANT_CATALOG.forEach(function(seed) {
     var card = document.createElement('div');
     card.className = 'seed-card';
     card.innerHTML =
       '<div class="seed-thumb" style="border-color:' + seed.petalColor + ';">' +
-        drawPlantSVG({ type: seed.id, stage: 'bloom', health: 100 }, 44, 44) +
+        drawPlantSVG({ type: seed.id, stage: 'bloom', health: 100 }, 40, 40) +
       '</div>' +
       '<div class="seed-info">' +
         '<div class="seed-name">' + seed.name + '</div>' +
-        '<div class="seed-time">' + seed.desc + '</div>' +
-        '<div class="seed-grow-time">grows in ' + seed.growHours + 'h</div>' +
+        '<div class="seed-desc">' + seed.desc + '</div>' +
+        '<div class="seed-time">grows in ' + seed.growHours + 'h</div>' +
       '</div>' +
       '<div class="seed-pill">plant</div>';
-    card.addEventListener('click', function() { plantSeed(seed, idx); });
+    card.addEventListener('click', function() { plantFlower(seed); });
     list.appendChild(card);
   });
 }
 
-function plantSeed(seed, idx) {
-  plots[idx] = {
+function plantFlower(seed) {
+  if (!selectedHoleIndex) return;
+  var pi = selectedHoleIndex.plot;
+  var fi = selectedHoleIndex.flower;
+
+  gardenPlots[pi][fi] = {
     type: seed.id,
     stage: 'seed',
     health: 100,
     water: 80,
     plantedAt: Date.now(),
     lastWatered: Date.now(),
-    lastInteracted: Date.now(),
-    hasWeed: false
+    lastInteracted: Date.now()
   };
-  window.gardenPlots = plots;
-  var modal = document.getElementById('seedModal');
-  if (modal) modal.classList.remove('open');
+
+  document.getElementById('seedModal').classList.remove('open');
   if (typeof unlockAchievement === 'function') unlockAchievement('firstSeed');
-  var noteEl = document.getElementById('noteText');
-  if (noteEl && typeof getNote === 'function') noteEl.textContent = getNote();
-  var filled = plots.filter(function(p) { return p; }).length;
-  if (filled === PLOT_COUNT && typeof unlockAchievement === 'function') unlockAchievement('greenThumb');
-  showToast('planted a ' + seed.name);
+  showToast('planted ' + seed.name);
+
+  var totalPlanted = 0;
+  gardenPlots.forEach(function(plot) {
+    plot.forEach(function(f) { if (f) totalPlanted++; });
+  });
+  if (totalPlanted >= FLOWERS_PER_PLOT && typeof unlockAchievement === 'function') {
+    unlockAchievement('greenThumb');
+  }
+
+  selectedHoleIndex = null;
   saveCurrentState();
-  renderGarden();
-  updateStats();
-  setTimeout(function() {
-    var plotEl = document.querySelector('[data-plot="' + idx + '"]');
-    if (plotEl) spawnSparkles(plotEl);
-  }, 100);
+  renderAllPlots();
 }
 
+// GROWTH
+function growthTick() {
+  var now = Date.now();
+  var changed = false;
+
+  gardenPlots.forEach(function(plot) {
+    plot.forEach(function(flower, fi) {
+      if (!flower) return;
+      var catalog = getPlantById(flower.type);
+      if (!catalog) return;
+
+      var ageMs = now - flower.plantedAt;
+      var stageMs = (catalog.growHours * 3600000) / 4;
+
+      var waterAge = now - (flower.lastWatered || flower.plantedAt);
+      var waterPct = Math.max(0, 100 - (waterAge / WATER_INTERVAL_MS) * 100);
+      flower.water = Math.round(waterPct);
+
+      if (waterPct < 20) {
+        flower.health = Math.max(0, flower.health - 2);
+      } else if (waterPct > 50) {
+        flower.health = Math.min(100, flower.health + 0.3);
+      }
+
+      if (flower.health <= 0 && flower.stage !== 'dead') {
+        flower.stage = 'dead';
+        if (typeof unlockAchievement === 'function') unlockAchievement('oops');
+        changed = true;
+        return;
+      }
+
+      if (flower.stage !== 'dead' && flower.stage !== 'bloom') {
+        var stageIdx = getStageIndex(flower.stage);
+        var expected = Math.min(4, Math.floor(ageMs / stageMs));
+        if (expected > stageIdx) {
+          flower.stage = STAGES[expected];
+          changed = true;
+          if (flower.stage === 'bloom') {
+            if (typeof unlockAchievement === 'function') unlockAchievement('firstBloom');
+            showToast('a ' + flower.type + ' is ready to harvest!');
+          }
+        }
+      }
+      changed = true;
+    });
+  });
+
+  if (changed) {
+    renderAllPlots();
+    updateHarvestBar();
+    saveCurrentState();
+  }
+}
+
+// TOOLS
 function setTool(tool) {
   currentTool = tool;
   document.querySelectorAll('.tool').forEach(function(t) { t.classList.remove('active'); });
-  var btn = document.getElementById('tool' + tool.charAt(0).toUpperCase() + tool.slice(1));
+  var id = 'tool' + tool.charAt(0).toUpperCase() + tool.slice(1);
+  var btn = document.getElementById(id);
   if (btn) btn.classList.add('active');
-  showToast(tool + ' tool selected');
+  showToast(tool + ' mode');
 }
 
-function getGardenHealth() {
-  var alive = plots.filter(function(p) { return p && p.stage !== 'dead'; });
-  if (!alive.length) return 0;
-  return Math.round(alive.reduce(function(sum, p) { return sum + p.health; }, 0) / alive.length);
+// HARVEST BAR
+function updateHarvestBar() {
+  var el = document.getElementById('harvestCount');
+  if (el) el.textContent = harvestedFlowers.length + ' flowers harvested';
 }
 
-function updateStats() {
-  var alive = plots.filter(function(p) { return p && p.stage !== 'dead'; }).length;
-  var scoreEl = document.getElementById('statScore');
-  var plantsEl = document.getElementById('statPlants');
-  var streakEl = document.getElementById('statStreak');
-  if (scoreEl) scoreEl.textContent = getGardenHealth() + '%';
-  if (plantsEl) plantsEl.textContent = alive + '/' + PLOT_COUNT;
-  if (streakEl) streakEl.textContent = visitStreak;
-}
-
+// SAVE
 function saveCurrentState() {
   try {
     saveState({
-      plots: plots,
+      gardenPlots: gardenPlots,
+      harvestedFlowers: harvestedFlowers,
       waterCount: waterCount,
       loveCount: loveCount,
       beeWave: beeWave,
@@ -354,41 +464,4 @@ function onBeeComplete(survived) {
     if (beeWave >= 5 && typeof unlockAchievement === 'function') unlockAchievement('beeSlayer');
   }
   saveCurrentState();
-}
-
-function spawnHearts(container) {
-  for (var i = 0; i < 5; i++) {
-    (function() {
-      var heart = document.createElement('div');
-      heart.className = 'heart-particle';
-      heart.style.cssText = 'left:' + (30 + Math.random() * 40) + '%;top:' + (10 + Math.random() * 30) + '%;animation-delay:' + (Math.random() * 0.3) + 's;';
-      heart.innerHTML = '<svg viewBox="0 0 20 18" width="14" height="14"><path d="M10 16s-8-5.5-8-10a5 5 0 0 1 10 0 5 5 0 0 1 10 0c0 4.5-8 10-8 10z" fill="#f2a8cc"/></svg>';
-      container.appendChild(heart);
-      setTimeout(function() { if (heart.parentNode) heart.remove(); }, 1300);
-    })();
-  }
-}
-
-function spawnWaterDrops(container) {
-  for (var i = 0; i < 6; i++) {
-    (function() {
-      var drop = document.createElement('div');
-      drop.className = 'water-drop';
-      drop.style.cssText = 'left:' + (20 + Math.random() * 60) + '%;top:' + (10 + Math.random() * 20) + '%;animation-delay:' + (Math.random() * 0.4) + 's;';
-      container.appendChild(drop);
-      setTimeout(function() { if (drop.parentNode) drop.remove(); }, 800);
-    })();
-  }
-}
-
-function spawnSparkles(container) {
-  for (var i = 0; i < 8; i++) {
-    (function() {
-      var sp = document.createElement('div');
-      sp.className = 'sparkle';
-      sp.style.cssText = 'left:' + (10 + Math.random() * 80) + '%;top:' + (10 + Math.random() * 60) + '%;animation-delay:' + (Math.random() * 0.5) + 's;';
-      container.appendChild(sp);
-      setTimeout(function() { if (sp.parentNode) sp.remove(); }, 1000);
-    })();
-  }
 }
