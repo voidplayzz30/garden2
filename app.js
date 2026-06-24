@@ -1,7 +1,5 @@
 function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(function(s) {
-    s.classList.remove('active');
-  });
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   document.getElementById(id).classList.add('active');
 }
 
@@ -15,9 +13,7 @@ function openNotes() {
   showScreen('notesScreen');
 }
 
-function closeNotes() {
-  showScreen('gardenScreen');
-}
+function closeNotes() { showScreen('gardenScreen'); }
 
 function showToast(msg) {
   var toast = document.getElementById('toast');
@@ -25,9 +21,7 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('show');
   clearTimeout(window._toastTimeout);
-  window._toastTimeout = setTimeout(function() {
-    toast.classList.remove('show');
-  }, 2200);
+  window._toastTimeout = setTimeout(function() { toast.classList.remove('show'); }, 2200);
 }
 
 function updateClock() {
