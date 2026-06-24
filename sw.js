@@ -1,20 +1,9 @@
-var CACHE = 'love-garden-v2';
+var CACHE = 'love-garden-v3';
 var FILES = [
-  './',
-  './index.html',
-  './style.css',
-  './animations.css',
-  './game.css',
-  './app.js',
-  './garden.js',
-  './plants.js',
-  './weather.js',
-  './achievements.js',
-  './bees.js',
-  './bouquet.js',
-  './notes.js',
-  './storage.js',
-  './manifest.json'
+  './', './index.html', './style.css', './animations.css',
+  './app.js', './garden.js', './plants.js', './weather.js',
+  './achievements.js', './bees.js', './bouquet.js', './notes.js',
+  './storage.js', './manifest.json'
 ];
 
 self.addEventListener('install', function(e) {
@@ -22,7 +11,5 @@ self.addEventListener('install', function(e) {
 });
 
 self.addEventListener('fetch', function(e) {
-  e.respondWith(
-    caches.match(e.request).then(function(r) { return r || fetch(e.request); })
-  );
+  e.respondWith(caches.match(e.request).then(function(r) { return r || fetch(e.request); }));
 });
