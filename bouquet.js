@@ -1,36 +1,35 @@
 var bouquetState = {
-  selectedFlowers: [],
-  wrapColor: 'pink',
-  ribbonColor: 'gold'
+  selected: [],
+  wrapColor: '#f2a8cc',
+  ribbonColor: '#f5d88b'
 };
 
-var WRAP_COLORS = [
-  { id: 'pink', label: 'pink', hex: '#f2a8cc' },
-  { id: 'white', label: 'white', hex: '#ffffff' },
-  { id: 'purple', label: 'purple', hex: '#c9b2f5' },
-  { id: 'green', label: 'green', hex: '#a8d4b0' }
+var WRAPS = [
+  { hex: '#f2a8cc', name: 'pink' },
+  { hex: '#d96a78', name: 'red' },
+  { hex: '#76b7ff', name: 'blue' },
+  { hex: '#ffffff', name: 'white' },
+  { hex: '#c9b2f5', name: 'purple' },
+  { hex: '#a8d4b0', name: 'green' },
+  { hex: '#f5d88b', name: 'gold' }
 ];
 
-var RIBBON_COLORS = [
-  { id: 'gold', label: 'gold', hex: '#f5d88b' },
-  { id: 'white', label: 'white', hex: '#ffffff' },
-  { id: 'pink', label: 'pink', hex: '#f2a8cc' },
-  { id: 'red', label: 'red', hex: '#e87a7a' }
+var RIBBONS = [
+  { hex: '#d96a78', name: 'red' },
+  { hex: '#f2a8cc', name: 'pink' },
+  { hex: '#f5d88b', name: 'gold' },
+  { hex: '#ffffff', name: 'white' },
+  { hex: '#c9b2f5', name: 'purple' },
+  { hex: '#ff69b4', name: 'hot pink' }
 ];
 
 function openBouquet() {
-  var bloomed = [];
-  if (window.gardenPlots) {
-    window.gardenPlots.forEach(function(p, i) {
-      if (p && p.stage === 'bloom') bloomed.push({ plot: i, type: p.type });
-    });
-  }
-  if (bloomed.length === 0) {
-    showToast('no bloomed flowers yet. keep growing');
+  if (harvestedFlowers.length === 0) {
+    showToast('no harvested flowers. harvest bloomed flowers first');
     return;
   }
-  bouquetState.selectedFlowers = [];
-  renderBouquetScreen(bloomed);
+  bouquetState.selected = [];
+  renderBouquetScreen();
   showScreen('bouquetScreen');
 }
 
@@ -38,95 +37,135 @@ function closeBouquet() {
   showScreen('gardenScreen');
 }
 
-function renderBouquetScreen(bloomed) {
-  var chips = document.getElementById('bloomedFlowers');
-  chips.innerHTML = '';
-  bloomed.forEach(function(item, i) {
-    var chip = document.createElement('div');
-    chip.className = 'bouquet-flower-chip';
-    chip.textContent = item.type;
-    chip.setAttribute('data-i', i);
-    chip.addEventListener('click', function() {
-      var already = bouquetState.selectedFlowers.findIndex(function(f) { return f.i === i; });
-      if (already !== -1) {
-        bouquetState.selectedFlowers.splice(already, 1);
-        chip.classList.remove('selected');
-      } else {
-        bouquetState.selectedFlowers.push({ i: i, type: item.type });
+function renderBouquetScreen() {
+  // Harvested flowers
+  var list = document.getElementById('harvestedList');
+  if (list) {
+    list.innerHTML = '';
+    harvestedFlowers.forEach(function(f, i) {
+      var chip = document.createElement('div');
+      chip.className = 'harvested-chip';
+      chip.textContent = f.type;
+      chip.addEventListener('click', function() {
+        var idx = bouquetState.selected.indexOf(i);
+        if (idx !== -1) {
+          bouquetState.selected.splice(idx, 1);
+          chip.classList.remove('in-bouquet');
+        } else {
+          bouquetState.selected.push(i);
+          chip.classList.add('in-bouquet');
+        }
+        renderBouquetCanvas();
+      });
+      list.appendChild(chip);
+    });
+  }
+
+  // Wrap colors
+  var wrapDiv = document.getElementById('wrapOptions');
+  if (wrapDiv) {
+    wrapDiv.innerHTML = '';
+    WRAPS.forEach(function(w) {
+      var chip = document.createElement('div');
+      chip.className = 'color-chip' + (w.hex === bouquetState.wrapColor ? ' selected' : '');
+      chip.style.background = w.hex;
+      chip.addEventListener('click', function() {
+        bouquetState.wrapColor = w.hex;
+        wrapDiv.querySelectorAll('.color-chip').forEach(function(c) { c.classList.remove('selected'); });
         chip.classList.add('selected');
-      }
-      renderBouquetCanvas();
+        renderBouquetCanvas();
+      });
+      wrapDiv.appendChild(chip);
     });
-    chips.appendChild(chip);
-  });
+  }
 
-  var wrapC = document.getElementById('wrapOptions');
-  wrapC.innerHTML = '';
-  WRAP_COLORS.forEach(function(w) {
-    var btn = document.createElement('button');
-    btn.className = 'wrap-chip' + (w.id === bouquetState.wrapColor ? ' selected' : '');
-    btn.textContent = w.label;
-    btn.style.borderColor = w.hex;
-    btn.addEventListener('click', function() {
-      bouquetState.wrapColor = w.id;
-      wrapC.querySelectorAll('.wrap-chip').forEach(function(c) { c.classList.remove('selected'); });
-      btn.classList.add('selected');
+  // Ribbon colors
+  var ribDiv = document.getElementById('ribbonOptions');
+  if (ribDiv) {
+    ribDiv.innerHTML = '';
+    RIBBONS.forEach(function(r) {
+      var chip = document.createElement('div');
+      chip.className = 'color-chip' + (r.hex === bouquetState.ribbonColor ? ' selected' : '');
+      chip.style.background = r.hex;
+      chip.addEventListener('click', function() {
+        bouquetState.ribbonColor = r.hex;
+        ribDiv.querySelectorAll('.color-chip').forEach(function(c) { c.classList.remove('selected'); });
+        chip.classList.add('selected');
+        renderBouquetCanvas();
+      });
+      ribDiv.appendChild(chip);
     });
-    wrapC.appendChild(btn);
-  });
-
-  var ribC = document.getElementById('ribbonOptions');
-  ribC.innerHTML = '';
-  RIBBON_COLORS.forEach(function(r) {
-    var btn = document.createElement('button');
-    btn.className = 'ribbon-chip' + (r.id === bouquetState.ribbonColor ? ' selected' : '');
-    btn.textContent = r.label;
-    btn.style.borderColor = r.hex;
-    btn.addEventListener('click', function() {
-      bouquetState.ribbonColor = r.id;
-      ribC.querySelectorAll('.ribbon-chip').forEach(function(c) { c.classList.remove('selected'); });
-      btn.classList.add('selected');
-    });
-    ribC.appendChild(btn);
-  });
+  }
 
   renderBouquetCanvas();
 }
 
 function renderBouquetCanvas() {
   var canvas = document.getElementById('bouquetCanvas');
+  if (!canvas) return;
   canvas.innerHTML = '';
-  if (bouquetState.selectedFlowers.length === 0) {
-    canvas.innerHTML = '<div class="bouquet-drop-hint">tap flowers above to add them</div>';
+
+  if (bouquetState.selected.length === 0) {
+    canvas.innerHTML = '<div class="bouquet-empty">tap your harvested flowers to add them</div>';
     return;
   }
-  bouquetState.selectedFlowers.forEach(function(item) {
+
+  // Wrapper background
+  canvas.style.borderColor = bouquetState.wrapColor;
+  canvas.style.background = bouquetState.wrapColor + '15';
+
+  // Ribbon line
+  var ribbon = document.createElement('div');
+  ribbon.style.cssText = 'width:100%;height:4px;background:' + bouquetState.ribbonColor + ';border-radius:4px;margin-bottom:8px;';
+  canvas.appendChild(ribbon);
+
+  bouquetState.selected.forEach(function(idx) {
+    var f = harvestedFlowers[idx];
+    if (!f) return;
     var wrap = document.createElement('div');
     wrap.className = 'bouquet-placed';
     wrap.style.cssText = 'display:inline-flex;flex-direction:column;align-items:center;margin:4px;';
-    wrap.innerHTML = drawPlantSVG({ type: item.type, stage: 'bloom', health: 100 }, 50, 70) +
-      '<span style="font-size:10px;color:rgba(255,255,255,0.7);text-transform:lowercase;">' + item.type + '</span>';
+    wrap.innerHTML = drawPlantSVG({ type: f.type, stage: 'bloom', health: 100 }, 44, 56) +
+      '<span style="font-size:9px;color:var(--muted);text-transform:lowercase;margin-top:2px;">' + f.type + '</span>';
     canvas.appendChild(wrap);
   });
 }
 
 function shareBouquet() {
-  var note = document.getElementById('bouquetNote').value;
-  if (bouquetState.selectedFlowers.length === 0) {
-    showToast('pick some flowers first');
+  if (bouquetState.selected.length === 0) {
+    showToast('add some flowers to your bouquet first');
     return;
   }
-  var flowers = bouquetState.selectedFlowers.map(function(f) { return f.type; }).join(', ');
-  var msg = encodeURIComponent(
-    'i grew these flowers for you in my love garden\n\n' +
+
+  var note = document.getElementById('bouquetNote');
+  var noteText = note ? note.value : '';
+  var flowers = bouquetState.selected.map(function(idx) {
+    return harvestedFlowers[idx] ? harvestedFlowers[idx].type : '';
+  }).filter(function(f) { return f; }).join(' and ');
+
+  var wrapName = WRAPS.find(function(w) { return w.hex === bouquetState.wrapColor; });
+  var ribbonName = RIBBONS.find(function(r) { return r.hex === bouquetState.ribbonColor; });
+
+  var msg = 'i made you a bouquet from my love garden\n\n' +
     'flowers: ' + flowers + '\n' +
-    'wrap: ' + bouquetState.wrapColor + ' ribbon: ' + bouquetState.ribbonColor + '\n\n' +
-    (note ? 'note: ' + note + '\n\n' : '') +
-    'made with love by nirvii'
-  );
-  var waUrl = 'https://wa.me/+918899292701?text=' + msg;
+    'wrapped in ' + (wrapName ? wrapName.name : 'pretty') + ' paper\n' +
+    'with a ' + (ribbonName ? ribbonName.name : 'cute') + ' ribbon\n\n' +
+    (noteText ? noteText + '\n\n' : '') +
+    'grown with love by nirvii';
+
+  var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
   window.open(waUrl, '_blank');
-  unlockAchievement('bouquetMade');
-  showToast('bouquet sent to vansh');
+
+  if (typeof unlockAchievement === 'function') unlockAchievement('bouquetMade');
+  showToast('bouquet sent!');
+
+  // Remove used flowers from harvested
+  var usedIndexes = bouquetState.selected.sort(function(a,b) { return b-a; });
+  usedIndexes.forEach(function(idx) {
+    harvestedFlowers.splice(idx, 1);
+  });
+  bouquetState.selected = [];
+  saveCurrentState();
+  updateHarvestBar();
   closeBouquet();
 }
