@@ -14,7 +14,6 @@
 </head>
 <body>
 
-<!-- SPLASH -->
 <div id="splash" class="screen active">
   <div class="splash-orb orb1"></div>
   <div class="splash-orb orb2"></div>
@@ -30,10 +29,8 @@
   </div>
 </div>
 
-<!-- MAIN GARDEN -->
 <div id="gardenScreen" class="screen">
 
-  <!-- TOP BAR -->
   <div class="top-bar">
     <div class="top-left">
       <div class="app-logo"></div>
@@ -47,31 +44,26 @@
     </div>
   </div>
 
-  <!-- PLOT INDICATOR -->
   <div class="plot-indicator">
     <span id="plotLabel">plot 1 of 3</span>
     <div class="plot-dots" id="plotDots"></div>
   </div>
 
-  <!-- SWIPEABLE GARDEN -->
   <div class="garden-swipe-container" id="gardenSwipeContainer">
     <div class="garden-swipe-track" id="gardenSwipeTrack"></div>
   </div>
 
-  <!-- HARVEST COUNT -->
   <div class="harvest-bar" id="harvestBar">
     <div class="harvest-icon"></div>
     <span id="harvestCount">0 flowers harvested</span>
     <button class="harvest-btn" onclick="openBouquet()">make bouquet</button>
   </div>
 
-  <!-- NOTE -->
   <div class="note-panel">
     <div class="note-text" id="noteText"></div>
     <div class="note-sig">from vansh</div>
   </div>
 
-  <!-- TOOLBAR -->
   <div class="toolbar">
     <button class="tool active" id="toolPlant" onclick="setTool('plant')">plant</button>
     <button class="tool" id="toolWater" onclick="setTool('water')">water</button>
@@ -80,7 +72,6 @@
   </div>
 </div>
 
-<!-- SEED PICKER -->
 <div id="seedModal" class="modal-overlay" onclick="closeSeedModal(event)">
   <div class="modal-sheet">
     <div class="sheet-handle"></div>
@@ -90,7 +81,6 @@
   </div>
 </div>
 
-<!-- BOUQUET SCREEN -->
 <div id="bouquetScreen" class="screen bouquet-screen">
   <div class="bouquet-top">
     <button class="back-btn" onclick="closeBouquet()">back</button>
@@ -121,7 +111,6 @@
   <button class="btn-main" onclick="shareBouquet()">send bouquet on whatsapp</button>
 </div>
 
-<!-- NOTES SCREEN -->
 <div id="notesScreen" class="screen notes-screen">
   <div class="notes-top">
     <button class="back-btn" onclick="closeNotes()">back</button>
@@ -130,7 +119,6 @@
   <div class="notes-list" id="notesList"></div>
 </div>
 
-<!-- BEE ATTACK -->
 <div id="beeScreen" class="screen bee-screen">
   <div class="bee-warning">
     <div class="bee-warning-icon">!</div>
@@ -145,7 +133,6 @@
   </div>
 </div>
 
-<!-- ACHIEVEMENT -->
 <div id="achievementPopup" class="achievement-popup">
   <div class="achievement-icon" id="achIcon"></div>
   <div>
@@ -154,7 +141,6 @@
   </div>
 </div>
 
-<!-- TOAST -->
 <div id="toast" class="toast"></div>
 
 <script src="storage.js"></script>
