@@ -24,8 +24,8 @@
 }
 
 @keyframes plantSway {
-  from { transform: translateX(-50%) rotate(-2deg); }
-  to { transform: translateX(-50%) rotate(2deg); }
+  from { transform: translateX(-50%) rotate(-3deg); }
+  to { transform: translateX(-50%) rotate(3deg); }
 }
 
 @keyframes heartFloat {
@@ -73,6 +73,37 @@
 @keyframes ghostFloat {
   from { transform: translateX(-50%) translateY(0); opacity: 0.5; }
   to { transform: translateX(-50%) translateY(-6px); opacity: 0.8; }
+}
+
+@keyframes sunRayShift {
+  from { transform: translateX(0) rotate(-3deg); }
+  to { transform: translateX(40px) rotate(3deg); }
+}
+
+@keyframes grassWave {
+  from { transform: rotate(-8deg); }
+  to { transform: rotate(8deg); }
+}
+
+@keyframes waterFlow {
+  from { transform: translateY(0); }
+  to { transform: translateY(14px); }
+}
+
+@keyframes bubbleRise {
+  from { bottom: 0; opacity: 0; transform: translateX(-50%) scale(0.5); }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  to { bottom: 100%; opacity: 0; transform: translateX(-50%) scale(1.2); }
+}
+
+@keyframes bloomGlow {
+  from { 
+    box-shadow: inset 0 6px 12px rgba(0,0,0,0.5), 0 4px 12px rgba(245,216,139,0.5), 0 0 0 2px rgba(245,216,139,0.3);
+  }
+  to { 
+    box-shadow: inset 0 6px 12px rgba(0,0,0,0.5), 0 4px 20px rgba(245,216,139,0.8), 0 0 0 4px rgba(245,216,139,0.4);
+  }
 }
 
 .heart-particle {
