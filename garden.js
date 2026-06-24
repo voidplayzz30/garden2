@@ -10,9 +10,11 @@ var visitStreak = 0;
 window.gardenPlots = plots;
 
 function initGarden() {
+  console.log('initGarden called');
+  
   var saved = loadState();
-  if (saved) {
-    plots = saved.plots || [];
+  if (saved && saved.plots) {
+    plots = saved.plots;
     while (plots.length < PLOT_COUNT) plots.push(null);
     waterCount = saved.waterCount || 0;
     loveCount = saved.loveCount || 0;
@@ -21,20 +23,32 @@ function initGarden() {
     initAchievements(saved.achievements || []);
     checkStreak(saved.lastVisit);
   } else {
-    plots = [];
-    for (var i = 0; i < PLOT_COUNT; i++) plots.push(null);
+    plots = [null, null, null, null, null];
     initAchievements([]);
     visitStreak = 1;
   }
+  
   window.gardenPlots = plots;
-  document.getElementById('noteText').textContent = getNote();
+  
+  var noteEl = document.getElementById('noteText');
+  if (noteEl) noteEl.textContent = getNote();
+  
   renderGarden();
   updateStats();
-  initWeather();
-  updateCreatures(getGardenHealth());
+  
+  if (typeof initWeather === 'function') initWeather();
+  if (typeof updateCreatures === 'function') updateCreatures(getGardenHealth());
+  
   setInterval(growthTick, 60000);
-  setInterval(function() { updateCreatures(getGardenHealth()); }, 120000);
-  setTimeout(function() { checkBeeAttack(beeWave, onBeeComplete); }, 3000);
+  setInterval(function() { 
+    if (typeof updateCreatures === 'function') updateCreatures(getGardenHealth()); 
+  }, 120000);
+  
+  setTimeout(function() { 
+    if (typeof checkBeeAttack === 'function') checkBeeAttack(beeWave, onBeeComplete); 
+  }, 3000);
+  
+  console.log('Garden initialized with plots:', plots);
 }
 
 function checkStreak(lastVisit) {
@@ -65,7 +79,7 @@ function growthTick() {
     var waterPct = Math.max(0, 100 - (waterAge / WATER_INTERVAL_MS) * 100);
     plots[i].water = Math.round(waterPct);
 
-    if (weatherState.current === 'rainy') {
+    if (weatherState && weatherState.current === 'rainy') {
       plots[i].water = Math.min(100, plots[i].water + 20);
       plots[i].lastWatered = now;
     }
@@ -76,7 +90,7 @@ function growthTick() {
       plots[i].health = Math.min(100, plots[i].health + 0.5);
     }
 
-    if (weatherState.current === 'stormy') {
+    if (weatherState && weatherState.current === 'stormy') {
       plots[i].health = Math.max(0, plots[i].health - 1);
     }
 
@@ -89,7 +103,7 @@ function growthTick() {
     }
 
     if (plot.stage !== 'dead' && plot.stage !== 'bloom') {
-      var sunBonus = weatherState.sunOpen ? 1 : 0.6;
+      var sunBonus = (weatherState && weatherState.sunOpen) ? 1 : 0.6;
       var stageIdx = getStageIndex(plot.stage);
       var expected = Math.min(4, Math.floor((ageMs * sunBonus) / stageMs));
       if (expected > stageIdx) {
@@ -100,8 +114,6 @@ function growthTick() {
           showToast('your ' + plot.type + ' is in full bloom');
           var plotEl = document.querySelector('[data-plot="' + i + '"]');
           if (plotEl) spawnSparkles(plotEl);
-          var allBloom = plots.filter(function(p) { return p; }).every(function(p) { return p.stage === 'bloom'; });
-          if (allBloom) unlockAchievement('perfectGarden');
         }
       }
     }
@@ -121,7 +133,13 @@ function growthTick() {
 
 function renderGarden() {
   var grid = document.getElementById('gardenGrid');
+  if (!grid) {
+    console.error('gardenGrid element not found!');
+    return;
+  }
+  
   grid.innerHTML = '';
+  console.log('Rendering', plots.length, 'plots');
 
   for (var i = 0; i < plots.length; i++) {
     var plot = plots[i];
@@ -149,15 +167,17 @@ function renderGarden() {
       plotEl.innerHTML = '<div class="empty-plus"></div>';
     }
 
-    plotEl.addEventListener('click', (function(idx) {
-      return function() { handlePlotClick(idx); };
-    })(i));
+    (function(idx) {
+      plotEl.addEventListener('click', function() { handlePlotClick(idx); });
+    })(i);
 
     grid.appendChild(plotEl);
   }
 }
 
 function handlePlotClick(idx) {
+  console.log('Plot clicked:', idx, 'Tool:', currentTool);
+  
   if (currentTool === 'plant') {
     if (!plots[idx]) openSeedModal(idx);
     else showToast('already planted here');
@@ -273,9 +293,12 @@ function getGardenHealth() {
 
 function updateStats() {
   var alive = plots.filter(function(p) { return p && p.stage !== 'dead'; }).length;
-  document.getElementById('statScore').textContent = getGardenHealth() + '%';
-  document.getElementById('statPlants').textContent = alive + '/' + PLOT_COUNT;
-  document.getElementById('statStreak').textContent = visitStreak;
+  var scoreEl = document.getElementById('statScore');
+  var plantsEl = document.getElementById('statPlants');
+  var streakEl = document.getElementById('statStreak');
+  if (scoreEl) scoreEl.textContent = getGardenHealth() + '%';
+  if (plantsEl) plantsEl.textContent = alive + '/' + PLOT_COUNT;
+  if (streakEl) streakEl.textContent = visitStreak;
 }
 
 function saveCurrentState() {
@@ -300,31 +323,37 @@ function onBeeComplete(survived) {
 
 function spawnHearts(container) {
   for (var i = 0; i < 5; i++) {
-    var heart = document.createElement('div');
-    heart.className = 'heart-particle';
-    heart.style.cssText = 'left:' + (30 + Math.random() * 40) + '%;top:' + (20 + Math.random() * 40) + '%;animation-delay:' + (Math.random() * 0.3) + 's;';
-    heart.innerHTML = '<svg viewBox="0 0 20 18" width="12" height="12"><path d="M10 16s-8-5.5-8-10a5 5 0 0 1 10 0 5 5 0 0 1 10 0c0 4.5-8 10-8 10z" fill="#f2a8cc"/></svg>';
-    container.appendChild(heart);
-    setTimeout(function() { if (heart.parentNode) heart.remove(); }, 1300);
+    (function() {
+      var heart = document.createElement('div');
+      heart.className = 'heart-particle';
+      heart.style.cssText = 'left:' + (30 + Math.random() * 40) + '%;top:' + (20 + Math.random() * 40) + '%;animation-delay:' + (Math.random() * 0.3) + 's;';
+      heart.innerHTML = '<svg viewBox="0 0 20 18" width="12" height="12"><path d="M10 16s-8-5.5-8-10a5 5 0 0 1 10 0 5 5 0 0 1 10 0c0 4.5-8 10-8 10z" fill="#f2a8cc"/></svg>';
+      container.appendChild(heart);
+      setTimeout(function() { if (heart.parentNode) heart.remove(); }, 1300);
+    })();
   }
 }
 
 function spawnWaterDrops(container) {
   for (var i = 0; i < 6; i++) {
-    var drop = document.createElement('div');
-    drop.className = 'water-drop';
-    drop.style.cssText = 'left:' + (20 + Math.random() * 60) + '%;top:' + (10 + Math.random() * 30) + '%;animation-delay:' + (Math.random() * 0.4) + 's;';
-    container.appendChild(drop);
-    setTimeout(function() { if (drop.parentNode) drop.remove(); }, 800);
+    (function() {
+      var drop = document.createElement('div');
+      drop.className = 'water-drop';
+      drop.style.cssText = 'left:' + (20 + Math.random() * 60) + '%;top:' + (10 + Math.random() * 30) + '%;animation-delay:' + (Math.random() * 0.4) + 's;';
+      container.appendChild(drop);
+      setTimeout(function() { if (drop.parentNode) drop.remove(); }, 800);
+    })();
   }
 }
 
 function spawnSparkles(container) {
   for (var i = 0; i < 8; i++) {
-    var sp = document.createElement('div');
-    sp.className = 'sparkle';
-    sp.style.cssText = 'left:' + (10 + Math.random() * 80) + '%;top:' + (10 + Math.random() * 80) + '%;animation-delay:' + (Math.random() * 0.5) + 's;';
-    container.appendChild(sp);
-    setTimeout(function() { if (sp.parentNode) sp.remove(); }, 1000);
+    (function() {
+      var sp = document.createElement('div');
+      sp.className = 'sparkle';
+      sp.style.cssText = 'left:' + (10 + Math.random() * 80) + '%;top:' + (10 + Math.random() * 80) + '%;animation-delay:' + (Math.random() * 0.5) + 's;';
+      container.appendChild(sp);
+      setTimeout(function() { if (sp.parentNode) sp.remove(); }, 1000);
+    })();
   }
 }
