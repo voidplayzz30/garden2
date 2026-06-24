@@ -1,37 +1,40 @@
 var PLOT_COUNT = 5;
 var WATER_INTERVAL_MS = 4 * 60 * 60 * 1000;
-var plots = [];
+var plots = [null, null, null, null, null];
 var currentTool = 'plant';
 var waterCount = 0;
 var loveCount = 0;
 var beeWave = 1;
-var visitStreak = 0;
+var visitStreak = 1;
 
 window.gardenPlots = plots;
 
 function initGarden() {
-  console.log('initGarden called');
-  
-  var saved = loadState();
-  if (saved && saved.plots) {
-    plots = saved.plots;
-    while (plots.length < PLOT_COUNT) plots.push(null);
-    waterCount = saved.waterCount || 0;
-    loveCount = saved.loveCount || 0;
-    beeWave = saved.beeWave || 1;
-    visitStreak = saved.visitStreak || 0;
-    initAchievements(saved.achievements || []);
-    checkStreak(saved.lastVisit);
-  } else {
+  try {
+    var saved = loadState();
+    if (saved && saved.plots && saved.plots.length > 0) {
+      plots = saved.plots;
+      while (plots.length < PLOT_COUNT) plots.push(null);
+      waterCount = saved.waterCount || 0;
+      loveCount = saved.loveCount || 0;
+      beeWave = saved.beeWave || 1;
+      visitStreak = saved.visitStreak || 1;
+      if (typeof initAchievements === 'function') initAchievements(saved.achievements || []);
+      checkStreak(saved.lastVisit);
+    } else {
+      plots = [null, null, null, null, null];
+      if (typeof initAchievements === 'function') initAchievements([]);
+      visitStreak = 1;
+    }
+  } catch(e) {
     plots = [null, null, null, null, null];
-    initAchievements([]);
     visitStreak = 1;
   }
   
   window.gardenPlots = plots;
   
   var noteEl = document.getElementById('noteText');
-  if (noteEl) noteEl.textContent = getNote();
+  if (noteEl && typeof getNote === 'function') noteEl.textContent = getNote();
   
   renderGarden();
   updateStats();
@@ -47,8 +50,6 @@ function initGarden() {
   setTimeout(function() { 
     if (typeof checkBeeAttack === 'function') checkBeeAttack(beeWave, onBeeComplete); 
   }, 3000);
-  
-  console.log('Garden initialized with plots:', plots);
 }
 
 function checkStreak(lastVisit) {
@@ -59,7 +60,7 @@ function checkStreak(lastVisit) {
   if (last === today) return;
   if (last === yesterday) visitStreak++;
   else visitStreak = 1;
-  if (visitStreak >= 7) unlockAchievement('sevenDays');
+  if (visitStreak >= 7 && typeof unlockAchievement === 'function') unlockAchievement('sevenDays');
 }
 
 function growthTick() {
@@ -79,7 +80,7 @@ function growthTick() {
     var waterPct = Math.max(0, 100 - (waterAge / WATER_INTERVAL_MS) * 100);
     plots[i].water = Math.round(waterPct);
 
-    if (weatherState && weatherState.current === 'rainy') {
+    if (typeof weatherState !== 'undefined' && weatherState.current === 'rainy') {
       plots[i].water = Math.min(100, plots[i].water + 20);
       plots[i].lastWatered = now;
     }
@@ -90,36 +91,27 @@ function growthTick() {
       plots[i].health = Math.min(100, plots[i].health + 0.5);
     }
 
-    if (weatherState && weatherState.current === 'stormy') {
-      plots[i].health = Math.max(0, plots[i].health - 1);
-    }
-
     if (plots[i].health <= 0 && plot.stage !== 'dead') {
       plots[i].stage = 'dead';
-      unlockAchievement('oops');
+      if (typeof unlockAchievement === 'function') unlockAchievement('oops');
       showToast('oh no your ' + plot.type + ' died');
       changed = true;
       continue;
     }
 
     if (plot.stage !== 'dead' && plot.stage !== 'bloom') {
-      var sunBonus = (weatherState && weatherState.sunOpen) ? 1 : 0.6;
+      var sunBonus = (typeof weatherState !== 'undefined' && weatherState.sunOpen) ? 1 : 0.6;
       var stageIdx = getStageIndex(plot.stage);
       var expected = Math.min(4, Math.floor((ageMs * sunBonus) / stageMs));
       if (expected > stageIdx) {
         plots[i].stage = STAGES[expected];
         changed = true;
         if (plots[i].stage === 'bloom') {
-          unlockAchievement('firstBloom');
+          if (typeof unlockAchievement === 'function') unlockAchievement('firstBloom');
           showToast('your ' + plot.type + ' is in full bloom');
-          var plotEl = document.querySelector('[data-plot="' + i + '"]');
-          if (plotEl) spawnSparkles(plotEl);
         }
       }
     }
-
-    var ignored = now - (plot.lastInteracted || plot.plantedAt) > 8 * 3600000;
-    plots[i].hasWeed = ignored && plot.stage !== 'dead';
     changed = true;
   }
 
@@ -133,13 +125,9 @@ function growthTick() {
 
 function renderGarden() {
   var grid = document.getElementById('gardenGrid');
-  if (!grid) {
-    console.error('gardenGrid element not found!');
-    return;
-  }
+  if (!grid) return;
   
   grid.innerHTML = '';
-  console.log('Rendering', plots.length, 'plots');
 
   for (var i = 0; i < plots.length; i++) {
     var plot = plots[i];
@@ -160,7 +148,6 @@ function renderGarden() {
       plotEl.innerHTML =
         '<div class="plot-soil' + (plot.water > 60 ? ' wet' : '') + '"></div>' +
         '<div class="plant-wrap">' + plantHTML + '</div>' +
-        (plot.hasWeed ? '<div class="weed" style="position:absolute;bottom:22px;left:' + (Math.random() > 0.5 ? '10' : '55') + 'px;">' + drawWeedSVG() + '</div>' : '') +
         '<div class="health-bar"><div class="health-fill ' + healthClass + '" style="width:' + plot.health + '%"></div></div>' +
         '<div class="plot-label">' + (plot.stage === 'dead' ? 'gone' : (STAGE_LABELS[plot.stage] || plot.stage)) + '</div>';
     } else {
@@ -176,8 +163,6 @@ function renderGarden() {
 }
 
 function handlePlotClick(idx) {
-  console.log('Plot clicked:', idx, 'Tool:', currentTool);
-  
   if (currentTool === 'plant') {
     if (!plots[idx]) openSeedModal(idx);
     else showToast('already planted here');
@@ -198,7 +183,7 @@ function waterPlant(idx) {
   plots[idx].lastInteracted = Date.now();
   plots[idx].health = Math.min(100, plots[idx].health + 10);
   waterCount++;
-  if (waterCount >= 20) unlockAchievement('waterQueen');
+  if (waterCount >= 20 && typeof unlockAchievement === 'function') unlockAchievement('waterQueen');
   var plotEl = document.querySelector('[data-plot="' + idx + '"]');
   if (plotEl) spawnWaterDrops(plotEl);
   showToast('watered');
@@ -211,7 +196,7 @@ function lovePlant(idx) {
   plots[idx].health = Math.min(100, plots[idx].health + 5);
   plots[idx].lastInteracted = Date.now();
   loveCount++;
-  if (loveCount >= 30) unlockAchievement('loveGiver');
+  if (loveCount >= 30 && typeof unlockAchievement === 'function') unlockAchievement('loveGiver');
   var plotEl = document.querySelector('[data-plot="' + idx + '"]');
   if (plotEl) spawnHearts(plotEl);
   showToast('love given');
@@ -221,18 +206,22 @@ function lovePlant(idx) {
 }
 
 function openSeedModal(idx) {
-  document.getElementById('seedModalSub').textContent = 'for plot ' + (idx + 1);
+  var sub = document.getElementById('seedModalSub');
+  if (sub) sub.textContent = 'for plot ' + (idx + 1);
   renderSeedList(idx);
-  document.getElementById('seedModal').classList.add('open');
+  var modal = document.getElementById('seedModal');
+  if (modal) modal.classList.add('open');
 }
 
 function closeSeedModal(e) {
   if (e && e.target !== document.getElementById('seedModal')) return;
-  document.getElementById('seedModal').classList.remove('open');
+  var modal = document.getElementById('seedModal');
+  if (modal) modal.classList.remove('open');
 }
 
 function renderSeedList(idx) {
   var list = document.getElementById('seedList');
+  if (!list) return;
   list.innerHTML = '';
   PLANT_CATALOG.forEach(function(seed) {
     var card = document.createElement('div');
@@ -263,11 +252,13 @@ function plantSeed(seed, idx) {
     hasWeed: false
   };
   window.gardenPlots = plots;
-  document.getElementById('seedModal').classList.remove('open');
-  unlockAchievement('firstSeed');
-  document.getElementById('noteText').textContent = getNote();
+  var modal = document.getElementById('seedModal');
+  if (modal) modal.classList.remove('open');
+  if (typeof unlockAchievement === 'function') unlockAchievement('firstSeed');
+  var noteEl = document.getElementById('noteText');
+  if (noteEl && typeof getNote === 'function') noteEl.textContent = getNote();
   var filled = plots.filter(function(p) { return p; }).length;
-  if (filled === PLOT_COUNT) unlockAchievement('greenThumb');
+  if (filled === PLOT_COUNT && typeof unlockAchievement === 'function') unlockAchievement('greenThumb');
   saveCurrentState();
   renderGarden();
   updateStats();
@@ -302,21 +293,23 @@ function updateStats() {
 }
 
 function saveCurrentState() {
-  saveState({
-    plots: plots,
-    waterCount: waterCount,
-    loveCount: loveCount,
-    beeWave: beeWave,
-    visitStreak: visitStreak,
-    lastVisit: Date.now(),
-    achievements: Array.from(unlockedAchievements)
-  });
+  try {
+    saveState({
+      plots: plots,
+      waterCount: waterCount,
+      loveCount: loveCount,
+      beeWave: beeWave,
+      visitStreak: visitStreak,
+      lastVisit: Date.now(),
+      achievements: typeof unlockedAchievements !== 'undefined' ? Array.from(unlockedAchievements) : []
+    });
+  } catch(e) {}
 }
 
 function onBeeComplete(survived) {
   if (survived) {
     beeWave = Math.min(beeWave + 1, 5);
-    if (beeWave >= 5) unlockAchievement('beeSlayer');
+    if (beeWave >= 5 && typeof unlockAchievement === 'function') unlockAchievement('beeSlayer');
   }
   saveCurrentState();
 }
