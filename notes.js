@@ -1,4 +1,4 @@
-const LOVE_NOTES = [
+var LOVE_NOTES = [
   "you feel like home to me",
   "every flower here is me trying to say i love you",
   "you make my days feel softer",
@@ -21,27 +21,29 @@ const LOVE_NOTES = [
   "i love you more than all the petals in this garden"
 ];
 
-let shownNotes = new Set();
+var shownNotes = [];
 
 function getNote() {
-  if (shownNotes.size >= LOVE_NOTES.length) shownNotes.clear();
-  const pool = LOVE_NOTES.filter((_, i) => !shownNotes.has(i));
-  const pick = Math.floor(Math.random() * pool.length);
-  const idx = LOVE_NOTES.indexOf(pool[pick]);
-  shownNotes.add(idx);
-  return pool[pick];
+  if (shownNotes.length >= LOVE_NOTES.length) shownNotes = [];
+  var available = [];
+  for (var i = 0; i < LOVE_NOTES.length; i++) {
+    if (shownNotes.indexOf(i) === -1) available.push(i);
+  }
+  var pick = available[Math.floor(Math.random() * available.length)];
+  shownNotes.push(pick);
+  return LOVE_NOTES[pick];
 }
 
 function renderNotesScreen() {
-  const list = document.getElementById('notesList');
+  var list = document.getElementById('notesList');
+  if (!list) return;
   list.innerHTML = '';
-  LOVE_NOTES.forEach(note => {
-    const el = document.createElement('div');
+  LOVE_NOTES.forEach(function(note) {
+    var el = document.createElement('div');
     el.className = 'note-item';
-    el.innerHTML = `
-      <div class="note-item-text">${note}</div>
-      <div class="note-item-sig">from vansh</div>
-    `;
+    el.innerHTML =
+      '<div class="note-item-text">' + note + '</div>' +
+      '<div class="note-item-sig">from vansh</div>';
     list.appendChild(el);
   });
 }
