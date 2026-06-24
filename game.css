@@ -1,0 +1,14 @@
+.plant-svg {
+  overflow: visible;
+  display: block;
+}
+
+.plot.tool-water:hover { border-color: rgba(118,183,255,0.5); }
+.plot.tool-love:hover { border-color: rgba(242,168,204,0.5); }
+.plot.tool-plant:hover:not(.has-plant) { border-color: rgba(77,154,106,0.5); }
+
+.shield-active {
+  box-shadow: 0 0 0 4px rgba(118,183,255,0.5),
+              0 0 20px rgba(118,183,255,0.3);
+  animation: shieldPulse 1s ease-in-out infinite;
+}

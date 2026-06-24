@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a0f2e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Love Garden</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="animations.css">
+  <link rel="stylesheet" href="game.css">
+</head>
+<body>
+
+<div id="splash" class="screen active">
+  <div class="splash-orb orb1"></div>
+  <div class="splash-orb orb2"></div>
+  <div class="splash-content">
+    <div class="splash-badge">private build for nirvii</div>
+    <h1 class="splash-title">love garden</h1>
+    <p class="splash-sub">made with love by vansh</p>
+    <div class="splash-card">
+      <h2>welcome nirvii</h2>
+      <p>plant flowers. water them. protect them from bees. turn your blooms into a bouquet and send it to vansh</p>
+    </div>
+    <button class="btn-main" onclick="enterGarden()">enter garden</button>
+  </div>
+</div>
+
+<div id="gardenScreen" class="screen">
+  <div id="sky" class="sky">
+    <div id="skyBody" class="sky-body"></div>
+    <div id="clouds" class="clouds-container"></div>
+    <div id="weatherLayer" class="weather-layer"></div>
+    <div id="butterflies" class="butterflies-container"></div>
+    <div id="fireflies" class="fireflies-container"></div>
+  </div>
+
+  <div class="top-bar">
+    <div class="top-left">
+      <div class="app-logo"></div>
+      <div>
+        <h1>love garden</h1>
+        <span>nirvii's garden</span>
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="weather-badge" id="weatherBadge">sunny</div>
+      <div class="time-pill" id="clock"></div>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-val" id="statScore">0%</div>
+      <div class="stat-lbl">garden health</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="statPlants">0/5</div>
+      <div class="stat-lbl">plants alive</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="statStreak">0</div>
+      <div class="stat-lbl">day streak</div>
+    </div>
+  </div>
+
+  <div class="sunlight-bar">
+    <span>sunlight</span>
+    <div class="toggle" id="sunToggle" onclick="toggleSunlight()">
+      <div class="toggle-thumb"></div>
+    </div>
+    <span id="sunLabel">open</span>
+  </div>
+
+  <div class="garden-panel">
+    <div class="garden-panel-glow"></div>
+    <div class="garden-header">
+      <h2>nirvii's garden bed</h2>
+      <p>tap an empty plot to plant a flower</p>
+    </div>
+    <div class="garden-grid" id="gardenGrid"></div>
+  </div>
+
+  <div class="note-panel">
+    <div class="note-label">today's note from vansh</div>
+    <div class="note-text" id="noteText"></div>
+    <div class="note-sig">from vansh</div>
+  </div>
+
+  <div class="toolbar">
+    <button class="tool active" id="toolPlant" onclick="setTool('plant')">plant</button>
+    <button class="tool" id="toolWater" onclick="setTool('water')">water</button>
+    <button class="tool" id="toolLove" onclick="setTool('love')">love</button>
+    <button class="tool" id="toolBouquet" onclick="openBouquet()">bouquet</button>
+    <button class="tool" id="toolNotes" onclick="openNotes()">notes</button>
+  </div>
+</div>
+
+<div id="seedModal" class="modal-overlay" onclick="closeSeedModal(event)">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <h2>choose a seed</h2>
+    <p class="sheet-sub" id="seedModalSub">for plot 1</p>
+    <div class="seed-list" id="seedList"></div>
+  </div>
+</div>
+
+<div id="achievementPopup" class="achievement-popup">
+  <div class="achievement-icon" id="achIcon"></div>
+  <div>
+    <div class="achievement-title" id="achTitle"></div>
+    <div class="achievement-sub" id="achSub"></div>
+  </div>
+</div>
+
+<div id="beeScreen" class="screen bee-screen">
+  <div class="bee-warning">
+    <div class="bee-warning-icon">!</div>
+    <h2>bee attack!</h2>
+    <p>tap the bees before they reach your flowers</p>
+    <div class="bee-timer-bar">
+      <div class="bee-timer-fill" id="beeTimerFill"></div>
+    </div>
+  </div>
+  <div id="beeField" class="bee-field"></div>
+  <div class="bee-tools">
+    <button class="bee-tool-btn" onclick="useShield()">
+      <div class="bee-tool-icon shield-icon"></div>
+      <span>shield <span id="shieldCount">2</span></span>
+    </button>
+    <button class="bee-tool-btn" onclick="useSmoke()">
+      <div class="bee-tool-icon smoke-icon"></div>
+      <span>smoke <span id="smokeCount">1</span></span>
+    </button>
+  </div>
+  <div class="bee-score-bar">
+    <span>flowers protected</span>
+    <span id="beeScore">0/5</span>
+  </div>
+</div>
+
+<div id="bouquetScreen" class="screen bouquet-screen">
+  <div class="bouquet-top">
+    <button class="back-btn" onclick="closeBouquet()">back</button>
+    <h2>build your bouquet</h2>
+  </div>
+  <div class="bloomed-flowers" id="bloomedFlowers"></div>
+  <div class="bouquet-canvas" id="bouquetCanvas">
+    <div class="bouquet-drop-hint">tap flowers above to add them</div>
+  </div>
+  <div class="bouquet-options">
+    <div class="option-label">wrap color</div>
+    <div class="wrap-options" id="wrapOptions"></div>
+    <div class="option-label">ribbon</div>
+    <div class="ribbon-options" id="ribbonOptions"></div>
+    <textarea class="love-note-input" id="bouquetNote" placeholder="write a note to vansh..."></textarea>
+    <button class="btn-main" onclick="shareBouquet()">share on whatsapp</button>
+  </div>
+</div>
+
+<div id="notesScreen" class="screen notes-screen">
+  <div class="notes-top">
+    <button class="back-btn" onclick="closeNotes()">back</button>
+    <h2>love notes</h2>
+  </div>
+  <div class="notes-list" id="notesList"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="storage.js"></script>
+<script src="notes.js"></script>
+<script src="plants.js"></script>
+<script src="weather.js"></script>
+<script src="achievements.js"></script>
+<script src="bees.js"></script>
+<script src="bouquet.js"></script>
+<script src="garden.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
