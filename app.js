@@ -11,7 +11,7 @@ function enterGarden() {
 }
 
 function openNotes() {
-  renderNotesScreen();
+  if (typeof renderNotesScreen === 'function') renderNotesScreen();
   showScreen('notesScreen');
 }
 
@@ -21,6 +21,7 @@ function closeNotes() {
 
 function showToast(msg) {
   var toast = document.getElementById('toast');
+  if (!toast) return;
   toast.textContent = msg;
   toast.classList.add('show');
   clearTimeout(window._toastTimeout);
