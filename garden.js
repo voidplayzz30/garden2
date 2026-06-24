@@ -42,10 +42,13 @@ function initGarden() {
   if (typeof initWeather === 'function') initWeather();
   if (typeof updateCreatures === 'function') updateCreatures(getGardenHealth());
   
-  setInterval(growthTick, 60000);
+  setInterval(growthTick, 30000);
   setInterval(function() { 
     if (typeof updateCreatures === 'function') updateCreatures(getGardenHealth()); 
   }, 120000);
+
+  // Update timers every 30 sec
+  setInterval(updateTimers, 30000);
   
   setTimeout(function() { 
     if (typeof checkBeeAttack === 'function') checkBeeAttack(beeWave, onBeeComplete); 
@@ -61,6 +64,16 @@ function checkStreak(lastVisit) {
   if (last === yesterday) visitStreak++;
   else visitStreak = 1;
   if (visitStreak >= 7 && typeof unlockAchievement === 'function') unlockAchievement('sevenDays');
+}
+
+function updateTimers() {
+  for (var i = 0; i < plots.length; i++) {
+    if (!plots[i] || plots[i].stage === 'dead') continue;
+    var timerEl = document.getElementById('timer-' + i);
+    if (timerEl) {
+      timerEl.textContent = getTimeToNextStage(plots[i]);
+    }
+  }
 }
 
 function growthTick() {
@@ -126,7 +139,6 @@ function growthTick() {
 function renderGarden() {
   var grid = document.getElementById('gardenGrid');
   if (!grid) return;
-  
   grid.innerHTML = '';
 
   for (var i = 0; i < plots.length; i++) {
@@ -141,17 +153,44 @@ function renderGarden() {
       else if (plot.water < 25 || plot.health < 30) plotEl.classList.add('wilting');
 
       var healthClass = plot.health > 60 ? 'good' : plot.health > 30 ? 'ok' : 'bad';
+      var waterClass = plot.water > 60 ? 'good' : plot.water > 30 ? 'ok' : 'bad';
       var plantHTML = plot.stage === 'dead'
-        ? drawDeadPlantSVG(70, 90)
-        : drawPlantSVG({ type: plot.type, stage: plot.stage, health: plot.health }, 70, 90);
+        ? drawDeadPlantSVG(60, 80)
+        : drawPlantSVG({ type: plot.type, stage: plot.stage, health: plot.health }, 60, 80);
+      
+      var catalog = getPlantById(plot.type);
+      var flowerName = catalog ? catalog.name : plot.type;
+      var stageText = plot.stage === 'dead' ? 'gone' : (STAGE_LABELS[plot.stage] || plot.stage);
+      var timeLeft = getTimeToNextStage(plot);
+      var isBloom = plot.stage === 'bloom';
 
       plotEl.innerHTML =
         '<div class="plot-soil' + (plot.water > 60 ? ' wet' : '') + '"></div>' +
         '<div class="plant-wrap">' + plantHTML + '</div>' +
-        '<div class="health-bar"><div class="health-fill ' + healthClass + '" style="width:' + plot.health + '%"></div></div>' +
-        '<div class="plot-label">' + (plot.stage === 'dead' ? 'gone' : (STAGE_LABELS[plot.stage] || plot.stage)) + '</div>';
+        '<div class="plot-info">' +
+          '<div class="plot-flower-name" style="color:' + (catalog ? catalog.petalColor : '#f2a8cc') + '">' + flowerName + '</div>' +
+          '<div class="plot-stage">' + stageText + '</div>' +
+          (isBloom ? '<div class="plot-bloom-tag">ready</div>' : '') +
+          (!isBloom && plot.stage !== 'dead' && timeLeft ? '<div class="plot-timer" id="timer-' + i + '">' + timeLeft + '</div>' : '') +
+          '<div class="plot-bars">' +
+            '<div class="plot-bar-row">' +
+              '<div class="plot-bar-icon health-icon"></div>' +
+              '<div class="plot-bar-track"><div class="plot-bar-fill ' + healthClass + '" style="width:' + plot.health + '%"></div></div>' +
+              '<div class="plot-bar-val">' + Math.round(plot.health) + '</div>' +
+            '</div>' +
+            '<div class="plot-bar-row">' +
+              '<div class="plot-bar-icon water-icon"></div>' +
+              '<div class="plot-bar-track"><div class="plot-bar-fill water-fill ' + waterClass + '" style="width:' + plot.water + '%"></div></div>' +
+              '<div class="plot-bar-val">' + Math.round(plot.water) + '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
     } else {
-      plotEl.innerHTML = '<div class="empty-plus"></div>';
+      plotEl.innerHTML =
+        '<div class="empty-plot-content">' +
+          '<div class="empty-plus"></div>' +
+          '<div class="empty-text">tap to plant</div>' +
+        '</div>';
     }
 
     (function(idx) {
@@ -186,7 +225,7 @@ function waterPlant(idx) {
   if (waterCount >= 20 && typeof unlockAchievement === 'function') unlockAchievement('waterQueen');
   var plotEl = document.querySelector('[data-plot="' + idx + '"]');
   if (plotEl) spawnWaterDrops(plotEl);
-  showToast('watered');
+  showToast('watered your ' + plots[idx].type);
   saveCurrentState();
   renderGarden();
   updateStats();
@@ -199,7 +238,7 @@ function lovePlant(idx) {
   if (loveCount >= 30 && typeof unlockAchievement === 'function') unlockAchievement('loveGiver');
   var plotEl = document.querySelector('[data-plot="' + idx + '"]');
   if (plotEl) spawnHearts(plotEl);
-  showToast('love given');
+  showToast('gave love to your ' + plots[idx].type);
   saveCurrentState();
   renderGarden();
   updateStats();
@@ -223,16 +262,18 @@ function renderSeedList(idx) {
   var list = document.getElementById('seedList');
   if (!list) return;
   list.innerHTML = '';
+  
   PLANT_CATALOG.forEach(function(seed) {
     var card = document.createElement('div');
     card.className = 'seed-card';
     card.innerHTML =
       '<div class="seed-thumb" style="border-color:' + seed.petalColor + ';">' +
-        drawPlantSVG({ type: seed.id, stage: 'bloom', health: 100 }, 50, 50) +
+        drawPlantSVG({ type: seed.id, stage: 'bloom', health: 100 }, 44, 44) +
       '</div>' +
       '<div class="seed-info">' +
         '<div class="seed-name">' + seed.name + '</div>' +
-        '<div class="seed-time">' + seed.desc + ' grows in ' + seed.growHours + 'h</div>' +
+        '<div class="seed-time">' + seed.desc + '</div>' +
+        '<div class="seed-grow-time">grows in ' + seed.growHours + 'h</div>' +
       '</div>' +
       '<div class="seed-pill">plant</div>';
     card.addEventListener('click', function() { plantSeed(seed, idx); });
@@ -259,6 +300,7 @@ function plantSeed(seed, idx) {
   if (noteEl && typeof getNote === 'function') noteEl.textContent = getNote();
   var filled = plots.filter(function(p) { return p; }).length;
   if (filled === PLOT_COUNT && typeof unlockAchievement === 'function') unlockAchievement('greenThumb');
+  showToast('planted a ' + seed.name);
   saveCurrentState();
   renderGarden();
   updateStats();
@@ -319,8 +361,8 @@ function spawnHearts(container) {
     (function() {
       var heart = document.createElement('div');
       heart.className = 'heart-particle';
-      heart.style.cssText = 'left:' + (30 + Math.random() * 40) + '%;top:' + (20 + Math.random() * 40) + '%;animation-delay:' + (Math.random() * 0.3) + 's;';
-      heart.innerHTML = '<svg viewBox="0 0 20 18" width="12" height="12"><path d="M10 16s-8-5.5-8-10a5 5 0 0 1 10 0 5 5 0 0 1 10 0c0 4.5-8 10-8 10z" fill="#f2a8cc"/></svg>';
+      heart.style.cssText = 'left:' + (30 + Math.random() * 40) + '%;top:' + (10 + Math.random() * 30) + '%;animation-delay:' + (Math.random() * 0.3) + 's;';
+      heart.innerHTML = '<svg viewBox="0 0 20 18" width="14" height="14"><path d="M10 16s-8-5.5-8-10a5 5 0 0 1 10 0 5 5 0 0 1 10 0c0 4.5-8 10-8 10z" fill="#f2a8cc"/></svg>';
       container.appendChild(heart);
       setTimeout(function() { if (heart.parentNode) heart.remove(); }, 1300);
     })();
@@ -332,7 +374,7 @@ function spawnWaterDrops(container) {
     (function() {
       var drop = document.createElement('div');
       drop.className = 'water-drop';
-      drop.style.cssText = 'left:' + (20 + Math.random() * 60) + '%;top:' + (10 + Math.random() * 30) + '%;animation-delay:' + (Math.random() * 0.4) + 's;';
+      drop.style.cssText = 'left:' + (20 + Math.random() * 60) + '%;top:' + (10 + Math.random() * 20) + '%;animation-delay:' + (Math.random() * 0.4) + 's;';
       container.appendChild(drop);
       setTimeout(function() { if (drop.parentNode) drop.remove(); }, 800);
     })();
@@ -344,7 +386,7 @@ function spawnSparkles(container) {
     (function() {
       var sp = document.createElement('div');
       sp.className = 'sparkle';
-      sp.style.cssText = 'left:' + (10 + Math.random() * 80) + '%;top:' + (10 + Math.random() * 80) + '%;animation-delay:' + (Math.random() * 0.5) + 's;';
+      sp.style.cssText = 'left:' + (10 + Math.random() * 80) + '%;top:' + (10 + Math.random() * 60) + '%;animation-delay:' + (Math.random() * 0.5) + 's;';
       container.appendChild(sp);
       setTimeout(function() { if (sp.parentNode) sp.remove(); }, 1000);
     })();
