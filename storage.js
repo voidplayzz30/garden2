@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'loveGarden_v2';
+var STORAGE_KEY = 'loveGarden_v3';
 
 function saveState(state) {
   try {
@@ -8,7 +8,7 @@ function saveState(state) {
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    var raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch(e) {
     return null;
