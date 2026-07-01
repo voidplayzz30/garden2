@@ -22,7 +22,7 @@ var RIBBONS = [
 ];
 
 function openBouquet() {
-  if (harvestedFlowers.length === 0) {
+  if (typeof harvestedFlowers === 'undefined' || harvestedFlowers.length === 0) {
     showToast('no harvested flowers. harvest bloomed flowers first');
     return;
   }
@@ -51,7 +51,6 @@ function renderBouquetScreen() {
         } else { 
           bouquetState.selected.push(i); 
           chip.classList.add('in-bouquet');
-          // Little animation when clicked
           chip.style.animation = 'chipPop 0.4s ease-out';
           setTimeout(function() { chip.style.animation = ''; }, 400);
         }
@@ -109,9 +108,7 @@ function renderBouquet() {
     return;
   }
 
-  // Get selected flowers
   var flowers = bouquetState.selected.map(function(idx) { return harvestedFlowers[idx]; }).filter(function(f) { return f; });
-  
   var svgHTML = buildBouquetSVG(flowers, bouquetState.wrapColor, bouquetState.ribbonColor);
   canvas.innerHTML = svgHTML;
 }
@@ -121,7 +118,6 @@ function buildBouquetSVG(flowers, wrapColor, ribbonColor) {
   var h = 340;
   var svg = '<svg width="100%" height="100%" viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg" id="bouquetSvg" style="max-width:280px;">';
   
-  // Sparkle background
   svg += '<defs>';
   svg += '<radialGradient id="glow" cx="50%" cy="40%">';
   svg += '<stop offset="0%" stop-color="' + wrapColor + '" stop-opacity="0.3"/>';
@@ -138,10 +134,8 @@ function buildBouquetSVG(flowers, wrapColor, ribbonColor) {
   svg += '</linearGradient>';
   svg += '</defs>';
   
-  // Background glow
   svg += '<ellipse cx="140" cy="130" rx="130" ry="100" fill="url(#glow)"/>';
   
-  // Sparkles around
   var sparkles = [
     { x: 40, y: 60, r: 2 }, { x: 240, y: 80, r: 2 },
     { x: 30, y: 150, r: 1.5 }, { x: 250, y: 180, r: 1.5 },
@@ -152,21 +146,16 @@ function buildBouquetSVG(flowers, wrapColor, ribbonColor) {
     svg += '<circle cx="' + s.x + '" cy="' + s.y + '" r="' + s.r + '" fill="#fff" opacity="0.7"><animate attributeName="opacity" values="0.3;0.9;0.3" dur="2s" repeatCount="indefinite"/></circle>';
   });
   
-  // Position flowers in a beautiful arrangement
   var positions = calculateFlowerPositions(flowers.length);
   
-  // Draw flowers (back layer - leaves and stems)
   flowers.forEach(function(f, i) {
     var pos = positions[i];
     var catalog = getPlantById(f.type);
     if (!catalog) return;
     var sc = catalog.stemColor;
-    
-    // Long stem going down to wrapper
     svg += '<line x1="' + pos.x + '" y1="' + pos.y + '" x2="140" y2="250" stroke="' + sc + '" stroke-width="3" stroke-linecap="round" opacity="0.8"/>';
   });
   
-  // Draw greenery (leaves) between flowers
   for (var g = 0; g < 6; g++) {
     var lx = 90 + (g * 20) + (Math.random() * 10 - 5);
     var ly = 210 + (g % 2) * 15;
@@ -174,54 +163,35 @@ function buildBouquetSVG(flowers, wrapColor, ribbonColor) {
     svg += '<ellipse cx="' + lx + '" cy="' + ly + '" rx="10" ry="4" fill="#4d9a6a" opacity="0.6" transform="rotate(' + (g * 30 - 45) + ' ' + lx + ' ' + ly + ')"/>';
   }
   
-  // Draw flowers (front layer - the blooms)
   flowers.forEach(function(f, i) {
     var pos = positions[i];
     svg += drawBouquetFlower(f.type, pos.x, pos.y, pos.size);
   });
   
-  // ==== WRAPPER (cone shape) ====
-  // Back of wrapper
   svg += '<path d="M 70 230 L 210 230 L 240 340 L 40 340 Z" fill="url(#wrapDark)" opacity="0.9"/>';
-  
-  // Front of wrapper (crossed)
   svg += '<path d="M 80 240 L 200 240 L 175 330 L 105 330 Z" fill="url(#wrap)"/>';
-  
-  // Left fold
   svg += '<path d="M 80 240 L 140 260 L 105 330 L 60 320 Z" fill="' + darkenColor(wrapColor, 15) + '" opacity="0.85"/>';
-  
-  // Right fold
   svg += '<path d="M 200 240 L 140 260 L 175 330 L 220 320 Z" fill="' + darkenColor(wrapColor, 15) + '" opacity="0.85"/>';
-  
-  // Highlight on wrapper
   svg += '<path d="M 90 245 L 100 250 L 110 320 L 100 322 Z" fill="#fff" opacity="0.2"/>';
   svg += '<path d="M 190 245 L 200 250 L 180 320 L 175 322 Z" fill="#fff" opacity="0.15"/>';
   
-  // ==== RIBBON ====
-  // Ribbon tie in the middle
   var ribbonY = 275;
   
-  // Ribbon horizontal band
   svg += '<rect x="70" y="' + ribbonY + '" width="140" height="14" fill="' + ribbonColor + '" rx="2"/>';
   svg += '<rect x="70" y="' + ribbonY + '" width="140" height="4" fill="#fff" opacity="0.3" rx="2"/>';
   
-  // Ribbon bow center
   svg += '<circle cx="140" cy="' + (ribbonY + 7) + '" r="9" fill="' + darkenColor(ribbonColor, 25) + '"/>';
   svg += '<circle cx="140" cy="' + (ribbonY + 7) + '" r="6" fill="' + ribbonColor + '"/>';
   
-  // Left bow loop
   svg += '<path d="M 140 ' + (ribbonY + 7) + ' Q 115 ' + (ribbonY - 5) + ' 105 ' + (ribbonY + 5) + ' Q 100 ' + (ribbonY + 15) + ' 125 ' + (ribbonY + 12) + ' Z" fill="' + ribbonColor + '"/>';
   svg += '<path d="M 140 ' + (ribbonY + 7) + ' Q 118 ' + (ribbonY) + ' 110 ' + (ribbonY + 6) + '" stroke="' + darkenColor(ribbonColor, 20) + '" stroke-width="1" fill="none"/>';
   
-  // Right bow loop
   svg += '<path d="M 140 ' + (ribbonY + 7) + ' Q 165 ' + (ribbonY - 5) + ' 175 ' + (ribbonY + 5) + ' Q 180 ' + (ribbonY + 15) + ' 155 ' + (ribbonY + 12) + ' Z" fill="' + ribbonColor + '"/>';
   svg += '<path d="M 140 ' + (ribbonY + 7) + ' Q 162 ' + (ribbonY) + ' 170 ' + (ribbonY + 6) + '" stroke="' + darkenColor(ribbonColor, 20) + '" stroke-width="1" fill="none"/>';
   
-  // Bow tails
   svg += '<path d="M 138 ' + (ribbonY + 12) + ' L 130 ' + (ribbonY + 35) + ' L 138 ' + (ribbonY + 33) + ' Z" fill="' + ribbonColor + '"/>';
   svg += '<path d="M 142 ' + (ribbonY + 12) + ' L 152 ' + (ribbonY + 38) + ' L 145 ' + (ribbonY + 34) + ' Z" fill="' + ribbonColor + '"/>';
   
-  // Sender text
   svg += '<text x="140" y="330" font-family="Arial" font-size="9" fill="rgba(255,255,255,0.9)" text-anchor="middle" font-weight="bold">from nirvii</text>';
   
   svg += '</svg>';
@@ -253,7 +223,6 @@ function calculateFlowerPositions(count) {
     positions.push({ x: centerX - 30, y: 175, size: 0.8 });
     positions.push({ x: centerX + 30, y: 175, size: 0.8 });
   } else {
-    // 6+ flowers arrangement
     var rows = [
       { y: 90, count: 2, spacing: 40, size: 0.95 },
       { y: 130, count: 3, spacing: 45, size: 0.9 },
@@ -273,7 +242,6 @@ function calculateFlowerPositions(count) {
         placed++;
       }
     }
-    // Extra flowers if 8+
     while (positions.length < count) {
       positions.push({ 
         x: centerX + (Math.random() * 100 - 50), 
@@ -395,149 +363,41 @@ function shareBouquet() {
   var note = document.getElementById('bouquetNote');
   var noteText = note ? note.value.trim() : '';
   
-  showToast('creating your bouquet image...');
+  var flowers = bouquetState.selected.map(function(idx) {
+    return harvestedFlowers[idx] ? harvestedFlowers[idx].type : null;
+  }).filter(function(f) { return f; });
   
-  // Convert SVG to image and download/share
-  setTimeout(function() {
-    generateBouquetImage(noteText);
-  }, 300);
-}
-
-function generateBouquetImage(noteText) {
-  var svg = document.getElementById('bouquetSvg');
-  if (!svg) { showToast('something went wrong'); return; }
-  
-  var svgData = new XMLSerializer().serializeToString(svg);
-  var canvas = document.createElement('canvas');
-  canvas.width = 600;
-  canvas.height = 800;
-  var ctx = canvas.getContext('2d');
-  
-  // Background
-  var grad = ctx.createLinearGradient(0, 0, 0, 800);
-  grad.addColorStop(0, '#2e1b4a');
-  grad.addColorStop(1, '#1a0f2e');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 600, 800);
-  
-  // Load SVG as image
-  var img = new Image();
-  var svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-  var url = URL.createObjectURL(svgBlob);
-  
-  img.onload = function() {
-    // Draw bouquet centered
-    ctx.drawImage(img, 40, 60, 520, 640);
-    URL.revokeObjectURL(url);
-    
-    // Add title
-    ctx.fillStyle = '#f5d88b';
-    ctx.font = 'bold 32px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('a bouquet for vansh', 300, 45);
-    
-    // Add note if exists
-    if (noteText) {
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.font = 'italic 20px Arial';
-      var lines = wrapText(ctx, noteText, 520);
-      var startY = 720;
-      lines.forEach(function(line, i) {
-        ctx.fillText(line, 300, startY + i * 26);
-      });
-    }
-    
-    // Footer
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '14px Arial';
-    ctx.fillText('grown with love in nirvii\'s garden', 300, 780);
-    
-    // Convert to blob and share
-    canvas.toBlob(function(blob) {
-      if (!blob) { showToast('image failed'); return; }
-      
-      var imgUrl = URL.createObjectURL(blob);
-      
-      // Try native share first (mobile)
-      if (navigator.share && navigator.canShare) {
-        var file = new File([blob], 'bouquet.png', { type: 'image/png' });
-        if (navigator.canShare({ files: [file] })) {
-          navigator.share({
-            files: [file],
-            title: 'a bouquet for vansh',
-            text: noteText || 'i made this for you'
-          }).then(function() {
-            onBouquetSent();
-          }).catch(function() {
-            fallbackShare(imgUrl, noteText);
-          });
-          return;
-        }
-      }
-      
-      fallbackShare(imgUrl, noteText);
-    }, 'image/png');
+  var bouquetData = {
+    flowers: flowers,
+    wrap: bouquetState.wrapColor,
+    ribbon: bouquetState.ribbonColor,
+    note: noteText,
+    date: Date.now()
   };
   
-  img.onerror = function() {
-    showToast('image failed. try again');
-  };
+  var encoded = btoa(JSON.stringify(bouquetData));
   
-  img.src = url;
-}
-
-function fallbackShare(imgUrl, noteText) {
-  // Show download modal
-  var modal = document.createElement('div');
-  modal.className = 'modal-overlay open';
-  modal.style.zIndex = '999';
-  modal.innerHTML =
-    '<div class="modal-sheet">' +
-      '<div class="sheet-handle"></div>' +
-      '<h2>your bouquet is ready</h2>' +
-      '<p class="sheet-sub">save it then share on whatsapp with vansh</p>' +
-      '<img src="' + imgUrl + '" style="width:100%;border-radius:16px;margin-bottom:14px;">' +
-      '<a href="' + imgUrl + '" download="bouquet-for-vansh.png" style="display:block;text-decoration:none;">' +
-        '<button class="btn-main" style="margin-bottom:10px;">save bouquet</button>' +
-      '</a>' +
-      '<button class="btn-main" style="background:#25d366;color:white;" onclick="openWhatsApp(\'' + (noteText.replace(/'/g, "\\'")) + '\')">open whatsapp</button>' +
-      '<button class="btn-main" style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.2);margin-top:8px;" onclick="this.parentNode.parentNode.remove()">close</button>' +
-    '</div>';
-  document.body.appendChild(modal);
+  var baseUrl = window.location.href.split('?')[0].split('#')[0].replace('index.html', '');
+  var bouquetUrl = baseUrl + 'view.html#' + encoded;
+  
+  var msg = 'i made you a bouquet from my love garden\n\n' +
+    'open this to see it:\n' + bouquetUrl + '\n\n' +
+    (noteText ? noteText + '\n\n' : '') +
+    'with love nirvii';
+  
+  var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  window.open(waUrl, '_blank');
   
   onBouquetSent();
 }
 
-function openWhatsApp(noteText) {
-  var msg = noteText || 'i made you a bouquet from my love garden';
-  msg += '\n\ngrown with love by nirvii';
-  var waUrl = 'https://wa.me/?text=' + encodeURIComponent(msg);
-  window.open(waUrl, '_blank');
-}
-
 function onBouquetSent() {
   if (typeof unlockAchievement === 'function') unlockAchievement('bouquetMade');
-  showToast('bouquet ready to share!');
+  showToast('bouquet sent to vansh!');
   var used = bouquetState.selected.sort(function(a,b) { return b-a; });
   used.forEach(function(idx) { harvestedFlowers.splice(idx, 1); });
   bouquetState.selected = [];
   saveCurrentState();
   updateHarvestBar();
-}
-
-function wrapText(ctx, text, maxWidth) {
-  var words = text.split(' ');
-  var lines = [];
-  var current = '';
-  for (var i = 0; i < words.length; i++) {
-    var test = current + words[i] + ' ';
-    if (ctx.measureText(test).width > maxWidth && current) {
-      lines.push(current.trim());
-      current = words[i] + ' ';
-    } else {
-      current = test;
-    }
-  }
-  if (current) lines.push(current.trim());
-  return lines.slice(0, 3);
+  setTimeout(function() { closeBouquet(); }, 1500);
 }
