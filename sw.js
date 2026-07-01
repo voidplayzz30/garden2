@@ -1,6 +1,6 @@
-var CACHE = 'love-garden-v3';
+var CACHE = 'love-garden-v4';
 var FILES = [
-  './', './index.html', './style.css', './animations.css',
+  './', './index.html', './view.html', './style.css', './animations.css',
   './app.js', './garden.js', './plants.js', './weather.js',
   './achievements.js', './bees.js', './bouquet.js', './notes.js',
   './storage.js', './manifest.json'
