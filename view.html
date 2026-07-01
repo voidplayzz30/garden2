@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a0f2e">
+  <title>A Bouquet From Nirvii</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="animations.css">
+  <style>
+    body {
+      background: linear-gradient(160deg, #1a0f2e, #2e1b4a, #4a2c63);
+      min-height: 100vh;
+      overflow: auto;
+    }
+    
+    .view-container {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .view-sparkle {
+      position: absolute;
+      background: #fff;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    
+    .view-heart {
+      position: absolute;
+      pointer-events: none;
+      animation: heartRise 6s linear infinite;
+    }
+    
+    @keyframes heartRise {
+      0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-100px) scale(1.2); opacity: 0; }
+    }
+    
+    .view-title {
+      font-size: 32px;
+      font-weight: 900;
+      color: white;
+      text-align: center;
+      text-transform: lowercase;
+      margin-bottom: 8px;
+      animation: fadeRise 1s ease-out;
+      z-index: 5;
+      position: relative;
+    }
+    
+    .view-subtitle {
+      color: #f5d88b;
+      font-size: 15px;
+      text-transform: lowercase;
+      margin-bottom: 20px;
+      animation: fadeRise 1.2s ease-out;
+      z-index: 5;
+      position: relative;
+    }
+    
+    .view-bouquet-wrap {
+      background: rgba(255,255,255,0.08);
+      border-radius: 30px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.15);
+      max-width: 380px;
+      width: 100%;
+      animation: bouquetSlideIn 1.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 5;
+      position: relative;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+    }
+    
+    @keyframes bouquetSlideIn {
+      from { opacity: 0; transform: translateY(60px) scale(0.7); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    
+    .view-bouquet-wrap svg {
+      width: 100%;
+      height: auto;
+      max-height: 400px;
+      filter: drop-shadow(0 10px 30px rgba(0,0,0,0.4));
+    }
+    
+    .view-note-card {
+      background: linear-gradient(135deg, rgba(242,168,204,0.15), rgba(201,178,245,0.15));
+      border: 1px solid rgba(242,168,204,0.3);
+      border-radius: 24px;
+      padding: 20px;
+      margin-top: 20px;
+      max-width: 380px;
+      width: 100%;
+      animation: fadeRise 1.6s ease-out;
+      z-index: 5;
+      position: relative;
+    }
+    
+    .view-note-label {
+      font-size: 11px;
+      color: #f5d88b;
+      text-transform: lowercase;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+    
+    .view-note-text {
+      font-size: 17px;
+      line-height: 1.5;
+      color: white;
+      text-transform: lowercase;
+      font-style: italic;
+    }
+    
+    .view-details {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 16px;
+      z-index: 5;
+      position: relative;
+      animation: fadeRise 1.8s ease-out;
+    }
+    
+    .view-detail-chip {
+      background: rgba(255,255,255,0.1);
+      padding: 6px 12px;
+      border-radius: 99px;
+      font-size: 11px;
+      color: white;
+      text-transform: lowercase;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    
+    .view-signature {
+      margin-top: 20px;
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      text-transform: lowercase;
+      z-index: 5;
+      position: relative;
+      animation: fadeRise 2s ease-out;
+      text-align: center;
+    }
+    
+    .view-signature-sub {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      text-transform: lowercase;
+      margin-top: 4px;
+    }
+    
+    .view-back-btn {
+      margin-top: 24px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: lowercase;
+      z-index: 5;
+      position: relative;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .view-empty {
+      text-align: center;
+      color: white;
+      padding: 40px 20px;
+    }
+    
+    .view-empty h2 {
+      font-size: 24px;
+      text-transform: lowercase;
+      margin-bottom: 10px;
+    }
+    
+    .view-empty p {
+      color: rgba(255,255,255,0.7);
+      text-transform: lowercase;
+    }
+  </style>
+</head>
+<body>
+
+<div class="view-container" id="viewContainer">
+  <div class="view-empty">
+    <h2>loading bouquet...</h2>
+  </div>
+</div>
+
+<script src="plants.js"></script>
+<script src="bouquet.js"></script>
+<script>
+  // Parse URL for bouquet data
+  function parseHash() {
+    var hash = window.location.hash.substr(1);
+    if (!hash) return null;
+    try {
+      var decoded = atob(hash);
+      return JSON.parse(decoded);
+    } catch(e) {
+      return null;
+    }
+  }
+  
+  function darkenColor(hex, percent) {
+    var num = parseInt(hex.replace('#', ''), 16);
+    var r = Math.max(0, (num >> 16) - Math.round(255 * percent / 100));
+    var g = Math.max(0, ((num >> 8) & 0x00FF) - Math.round(255 * percent / 100));
+    var b = Math.max(0, (num & 0x0000FF) - Math.round(255 * percent / 100));
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+  
+  function spawnDecorations() {
+    var container = document.getElementById('viewContainer');
+    
+    // Sparkles
+    for (var i = 0; i < 30; i++) {
+      var s = document.createElement('div');
+      s.className = 'view-sparkle';
+      var size = Math.random() * 3 + 1;
+      s.style.cssText = 
+        'width:' + size + 'px;height:' + size + 'px;' +
+        'left:' + (Math.random() * 100) + '%;' +
+        'top:' + (Math.random() * 100) + '%;' +
+        'opacity:' + (Math.random() * 0.6 + 0.2) + ';' +
+        'animation: sparklePop ' + (2 + Math.random() * 3) + 's ease-in-out ' + (-Math.random() * 3) + 's infinite alternate;';
+      container.appendChild(s);
+    }
+    
+    // Floating hearts
+    for (var h = 0; h < 8; h++) {
+      var heart = document.createElement('div');
+      heart.className = 'view-heart';
+      heart.style.cssText = 
+        'left:' + (Math.random() * 100) + '%;' +
+        'animation-delay:' + (h * 0.8) + 's;' +
+        'animation-duration:' + (5 + Math.random() * 3) + 's;';
+      heart.innerHTML = '<svg width="16" height="14" viewBox="0 0 20 18"><path d="M10 16s-8-5.5-8-10a5 5 0 0 1 10 0 5 5 0 0 1 10 0c0 4.5-8 10-8 10z" fill="#f2a8cc" opacity="0.6"/></svg>';
+      container.appendChild(heart);
+    }
+  }
+  
+  function renderBouquet(data) {
+    var container = document.getElementById('viewContainer');
+    container.innerHTML = '';
+    
+    var wrapColorName = getColorName(data.wrap, 'wrap');
+    var ribbonColorName = getColorName(data.ribbon, 'ribbon');
+    
+    var flowerCounts = {};
+    data.flowers.forEach(function(f) {
+      flowerCounts[f] = (flowerCounts[f] || 0) + 1;
+    });
+    
+    var flowerText = [];
+    Object.keys(flowerCounts).forEach(function(f) {
+      flowerText.push(flowerCounts[f] + ' ' + f);
+    });
+    
+    // Build fake harvestedFlowers array for the SVG builder
+    var flowerObjs = data.flowers.map(function(type) {
+      return { type: type };
+    });
+    
+    var svg = buildBouquetSVG(flowerObjs, data.wrap, data.ribbon);
+    
+    container.innerHTML =
+      '<div class="view-title">a bouquet for you vansh</div>' +
+      '<div class="view-subtitle">grown with love by nirvii</div>' +
+      '<div class="view-bouquet-wrap">' + svg + '</div>' +
+      (data.note ? 
+        '<div class="view-note-card">' +
+          '<div class="view-note-label">her note</div>' +
+          '<div class="view-note-text">' + escapeHtml(data.note) + '</div>' +
+        '</div>' 
+      : '') +
+      '<div class="view-details">' +
+        '<div class="view-detail-chip">' + data.flowers.length + ' flowers</div>' +
+        '<div class="view-detail-chip">' + wrapColorName + ' wrap</div>' +
+        '<div class="view-detail-chip">' + ribbonColorName + ' ribbon</div>' +
+      '</div>' +
+      '<div class="view-signature">with love</div>' +
+      '<div class="view-signature-sub">from nirvii</div>' +
+      '<a href="index.html" class="view-back-btn">visit the garden</a>';
+    
+    spawnDecorations();
+  }
+  
+  function getColorName(hex, type) {
+    var arr = type === 'wrap' ? WRAPS : RIBBONS;
+    var found = arr.find(function(c) { return c.hex === hex; });
+    return found ? found.name : 'pretty';
+  }
+  
+  function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  // Init
+  var data = parseHash();
+  if (data && data.flowers && data.flowers.length > 0) {
+    renderBouquet(data);
+  } else {
+    document.getElementById('viewContainer').innerHTML =
+      '<div class="view-empty">' +
+        '<h2>no bouquet here</h2>' +
+        '<p>this link seems empty</p>' +
+        '<a href="index.html" class="view-back-btn" style="margin-top:20px;">go to garden</a>' +
+      '</div>';
+  }
+</script>
+
+</body>
+</html>
